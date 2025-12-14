@@ -170,7 +170,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # چک باکس‌ها
         self.check_container = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.check_container.pack(pady=5, padx=20, fill="x")
+        self.check_container.pack(pady=5, padx=20, anchor="e")
 
         self.check_boomerang = self.add_checkbox("افکت بومرنگ (رفت و برگشت)")
         self.check_mute = self.add_checkbox("حذف صدا")
@@ -214,18 +214,40 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # وضعیت
         self.status_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.status_frame.pack(pady=5, padx=20, fill="x")
-        self.label_status = ctk.CTkLabel(self.status_frame, text="آماده...", text_color="gray", font=PERSIAN_FONT)
-        self.label_status.pack(anchor="center") 
-        self.progress_bar = ctk.CTkProgressBar(self.scroll_frame, width=400)
+        self.status_frame.pack(pady=5, padx=20, fill="x", anchor="e")
+        self.status_frame.columnconfigure(0, weight=1)
+
+        self.label_status = ctk.CTkLabel(
+            self.status_frame,
+            text="\u202Bآماده...\u202C",
+            text_color="gray",
+            font=PERSIAN_FONT,
+            anchor="e",
+            justify="right",
+        )
+        self.label_status.grid(row=0, column=0, sticky="e")
+
+        self.progress_bar = ctk.CTkProgressBar(self.status_frame)
         self.progress_bar.set(0)
-        self.progress_bar.pack(pady=5)
-        self.label_size = ctk.CTkLabel(self.scroll_frame, text="حجم فایل: 0 MB", font=("Arial", 12))
-        self.label_size.pack(pady=5, anchor="center")
+        self.progress_bar.grid(row=1, column=0, sticky="ew", pady=5)
+
+        self.label_size = ctk.CTkLabel(
+            self.status_frame,
+            text="حجم فایل: \u202A0.00 MB\u202C",
+            font=("Arial", 12),
+            anchor="e",
+            justify="right",
+        )
+        self.label_size.grid(row=2, column=0, sticky="e", pady=5)
 
     def add_checkbox(self, text):
         cb = ctk.CTkCheckBox(self.check_container, text=text.strip(), font=PERSIAN_FONT)
-        cb.pack(pady=5, anchor="e") 
+        # اطمینان از چسبیدن متن به راست و حذف فاصله اضافی ابتدای برچسب
+        try:
+            cb._text_label.configure(anchor="e", justify="right", padx=0)
+        except Exception:
+            pass
+        cb.pack(pady=5, anchor="e", padx=0)
         cb.select()
         return cb
 
@@ -387,7 +409,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
                     if output_file and os.path.exists(output_file):
                         try:
                             size_mb = os.path.getsize(output_file) / (1024 * 1024)
-                            self.label_size.configure(text=f"حجم: {size_mb:.2f} MB")
+                            self.label_size.configure(text=f"حجم: \u202A{size_mb:.2f} MB\u202C")
                         except: pass
 
         except Exception as e:
