@@ -172,17 +172,20 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.check_container = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
         self.check_container.pack(pady=5, padx=20, anchor="e")
 
-        self.check_boomerang = self.add_checkbox("افکت بومرنگ (رفت و برگشت)")
-        self.check_mute = self.add_checkbox("حذف صدا")
+        self.check_boomerang = self.add_checkbox(
+            self.check_container, "افکت بومرنگ (رفت و برگشت)")
+        self.check_mute = self.add_checkbox(self.check_container, "حذف صدا")
         
         # --- فشرده سازی ---
         self.frame_compress_header = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
         self.frame_compress_header.pack(pady=5, padx=20, fill="x")
         self.btn_compress_acc = ctk.CTkButton(self.frame_compress_header, text="🔽 تنظیمات", width=80, height=24, fg_color="gray30", hover_color="gray40", command=self.toggle_compress_accordion, font=PERSIAN_FONT)
         self.btn_compress_acc.pack(side="left")
-        self.check_compress = ctk.CTkCheckBox(self.frame_compress_header, text="فشرده‌سازی هوشمند (CRF)", font=PERSIAN_FONT)
-        self.check_compress.pack(side="right", anchor="e")
-        self.check_compress.select()
+        self.check_compress = self.add_checkbox(
+            self.frame_compress_header,
+            "فشرده‌سازی هوشمند (CRF)",
+            pack_opts={"side": "right", "pady": 0, "anchor": "e"},
+        )
 
         self.frame_compress_settings = ctk.CTkFrame(self.scroll_frame, fg_color=("gray90", "gray20"))
         self.lbl_compress_info = ctk.CTkLabel(self.frame_compress_settings, text="CRF: 28 (فشرده و استاندارد)", font=PERSIAN_FONT, text_color="cyan")
@@ -196,9 +199,11 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.frame_cine_header.pack(pady=5, padx=20, fill="x")
         self.btn_cine_acc = ctk.CTkButton(self.frame_cine_header, text="🔽 تنظیمات", width=80, height=24, fg_color="gray30", hover_color="gray40", command=self.toggle_cine_accordion, font=PERSIAN_FONT)
         self.btn_cine_acc.pack(side="left")
-        self.check_cinematic = ctk.CTkCheckBox(self.frame_cine_header, text="حالت سینماتیک (رنگ و نور)", font=PERSIAN_FONT)
-        self.check_cinematic.pack(side="right", anchor="e")
-        self.check_cinematic.select()
+        self.check_cinematic = self.add_checkbox(
+            self.frame_cine_header,
+            "حالت سینماتیک (رنگ و نور)",
+            pack_opts={"side": "right", "pady": 0, "anchor": "e"},
+        )
 
         self.frame_cine_settings = ctk.CTkFrame(self.scroll_frame, fg_color=("gray90", "gray20"))
         self.create_slider("کنتراست", 0.5, 2.0, 1.2, "contrast")
@@ -240,10 +245,16 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         )
         self.label_size.grid(row=2, column=0, sticky="e", pady=5)
 
-    def add_checkbox(self, text):
-        wrapper = ctk.CTkFrame(self.check_container, fg_color="transparent")
-        wrapper.pack(pady=5, anchor="e", fill="x")
-        wrapper.columnconfigure(0, weight=1)
+    def add_checkbox(self, parent, text, pack_opts=None):
+        if pack_opts is None:
+            pack_opts = {"pady": 5, "anchor": "e", "fill": "x"}
+
+        wrapper = ctk.CTkFrame(parent, fg_color="transparent")
+        wrapper.pack(**pack_opts)
+        wrapper.columnconfigure(1, weight=1)
+
+        cb = ctk.CTkCheckBox(wrapper, text="", width=22)
+        cb.grid(row=0, column=0, padx=(0, 8))
 
         ctk.CTkLabel(
             wrapper,
@@ -252,10 +263,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             anchor="e",
             justify="right",
             text_color="white",
-        ).grid(row=0, column=0, sticky="e", padx=(0, 6))
-
-        cb = ctk.CTkCheckBox(wrapper, text="", width=22)
-        cb.grid(row=0, column=1, padx=(0, 8))
+        ).grid(row=0, column=1, sticky="e")
 
         cb.select()
         return cb
