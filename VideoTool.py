@@ -150,11 +150,11 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.setup_context_menu(self.entry_file)
 
         # ترک‌های فایل
-        self.track_card = ctk.CTkFrame(self.scroll_frame, fg_color=("gray90", "gray22"))
-        self.track_card.pack(pady=5, padx=20, fill="x")
+        self.track_card = ctk.CTkFrame(self.scroll_frame, fg_color=("gray90", "gray22"), corner_radius=10)
+        self.track_card.pack(pady=8, padx=20, fill="x")
 
         track_header = ctk.CTkFrame(self.track_card, fg_color="transparent")
-        track_header.pack(fill="x", pady=(6, 0), padx=10)
+        track_header.pack(fill="x", pady=(8, 0), padx=10)
         ctk.CTkLabel(
             track_header,
             text="ترک‌های فایل",
@@ -173,8 +173,11 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             font=("Tahoma", 11),
         ).pack(side="left")
 
-        self.track_list = ctk.CTkScrollableFrame(self.track_card, fg_color="transparent", height=120)
+        self.track_list = ctk.CTkFrame(self.track_card, fg_color="transparent")
         self.track_list.pack(fill="x", padx=10, pady=10)
+        for idx in range(5):
+            self.track_list.columnconfigure(idx, weight=1 if idx != 0 else 0)
+        self.track_states = []
 
         # زمان
         self.frame_time = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
@@ -299,12 +302,33 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         path = self.entry_file.get().strip('"')
         self.update_track_list(path)
 
+    def get_selected_tracks(self):
+        selected = {"video": [], "audio": [], "subtitle": []}
+        for item in getattr(self, "track_states", []):
+            if item.get("var") and item["var"].get():
+                track = item.get("track", {})
+                selected.setdefault(track.get("type"), []).append(track)
+        return selected
+
     def update_track_list(self, file_path=None):
         if not hasattr(self, "track_list"):
             return
 
         for child in self.track_list.winfo_children():
             child.destroy()
+        self.track_states = []
+
+        headers = ["نگه‌دار", "کدک", "نوع", "زبان", "عنوان"]
+        for col, text in enumerate(headers):
+            anchor = "w" if col == 0 else "e"
+            ctk.CTkLabel(
+                self.track_list,
+                text=text,
+                font=("Tahoma", 11, "bold"),
+                text_color="gray80",
+                anchor=anchor,
+                justify="right",
+            ).grid(row=0, column=col, sticky="we", pady=(0, 6))
 
         file_path = file_path or self.entry_file.get().strip('"')
         if not file_path or not os.path.exists(file_path):
@@ -330,16 +354,49 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             ).pack(anchor="e", padx=6, pady=4, fill="x")
             return
 
-        for track in tracks:
-            text = self.format_track_text(track)
+        for row, track in enumerate(tracks, start=1):
+            var = tk.BooleanVar(value=True)
+            cb = ctk.CTkCheckBox(self.track_list, text="", width=18, variable=var)
+            cb.grid(row=row, column=0, sticky="w", padx=(0, 6))
+
             ctk.CTkLabel(
                 self.track_list,
-                text=text,
+                text=track.get("codec", "-"),
                 font=PERSIAN_FONT,
                 anchor="e",
                 justify="right",
                 text_color="white",
-            ).pack(anchor="e", padx=6, pady=4, fill="x")
+            ).grid(row=row, column=1, sticky="e", padx=(4, 0))
+
+            ctk.CTkLabel(
+                self.track_list,
+                text=track.get("type_label", "-"),
+                font=PERSIAN_FONT,
+                anchor="e",
+                justify="right",
+                text_color="gray90",
+            ).grid(row=row, column=2, sticky="e", padx=(4, 0))
+
+            ctk.CTkLabel(
+                self.track_list,
+                text=track.get("language", "-"),
+                font=PERSIAN_FONT,
+                anchor="e",
+                justify="right",
+                text_color="gray80",
+            ).grid(row=row, column=3, sticky="e", padx=(4, 0))
+
+            title = track.get("title") or "—"
+            ctk.CTkLabel(
+                self.track_list,
+                text=title,
+                font=PERSIAN_FONT,
+                anchor="e",
+                justify="right",
+                text_color="white",
+            ).grid(row=row, column=4, sticky="e")
+
+            self.track_states.append({"var": var, "track": track})
 
     def extract_tracks(self, file_path):
         try:
@@ -359,30 +416,33 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
                 check=True,
             )
             data = json.loads(result.stdout)
-            return data.get("streams", [])
+            streams = data.get("streams", [])
+
+            counts = {"video": 0, "audio": 0, "subtitle": 0}
+            labels = {"video": "ویدیو", "audio": "صدا", "subtitle": "زیرنویس"}
+
+            parsed = []
+            for stream in streams:
+                stype = stream.get("codec_type", "other")
+                type_idx = counts.get(stype, 0)
+                counts[stype] = type_idx + 1
+
+                tags = stream.get("tags") or {}
+                parsed.append(
+                    {
+                        "index": stream.get("index"),
+                        "type": stype,
+                        "type_index": type_idx,
+                        "type_label": labels.get(stype, "سایر"),
+                        "codec": (stream.get("codec_name") or "").upper() or "—",
+                        "language": (tags.get("language") or "").upper() or "—",
+                        "title": tags.get("title", ""),
+                    }
+                )
+
+            return parsed
         except Exception:
             return []
-
-    def format_track_text(self, stream_info):
-        stream_type = stream_info.get("codec_type", "نامشخص")
-        codec = (stream_info.get("codec_name") or "").upper()
-        tags = stream_info.get("tags") or {}
-        language = tags.get("language", "").upper()
-        title = tags.get("title", "")
-
-        type_map = {
-            "video": "🎞️ ویدیو",
-            "audio": "🔊 صدا",
-            "subtitle": "💬 زیرنویس",
-        }
-        base = type_map.get(stream_type, "❔ سایر")
-        parts = [part for part in [base, codec] if part]
-
-        extras = [val for val in [language, title] if val]
-        if extras:
-            parts.append(" - ".join(extras))
-
-        return " | ".join(parts)
 
     def browse_file_update(self):
         filename = filedialog.askopenfilename(filetypes=[("Video Files", "*.mp4 *.mkv *.mov *.avi")])
@@ -473,9 +533,20 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             self.label_status.configure(text="🚀 شروع شد...", text_color="orange")
             self.progress_bar.set(0)
 
+            track_selection = self.get_selected_tracks()
+            video_tracks = track_selection.get("video")
+            if not video_tracks:
+                self.label_status.configure(text="❌ خطا: حداقل یک ویدیو لازم است.", text_color="red")
+                self.btn_run.configure(state="normal", text="شروع پردازش")
+                return
+
+            primary_video = video_tracks[0]
+            video_spec = f"0:v:{primary_video.get('type_index', 0)}"
+            filter_input = f"[{video_spec}]"
+
             cmd = ['ffmpeg', '-y', '-ss', start_t, '-to', end_t, '-i', input_file]
             filter_chains = []
-            last_stream = "[0:v]"
+            last_stream = filter_input
 
             if self.check_cinematic.get():
                 con = round(self.slider_contrast.get(), 2)
@@ -491,19 +562,36 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
                 boom_filter = f"{last_stream}split=2[f][r];[r]reverse[rev];[f][rev]concat=n=2:v=1:a=0[outv]"
                 filter_chains.append(boom_filter)
                 last_stream = "[outv]"
-            elif filter_chains: 
+            elif filter_chains:
                 filter_chains.append(f"{last_stream}null[outv]")
                 last_stream = "[outv]"
 
             if filter_chains:
                 cmd.extend(['-filter_complex', ";".join(filter_chains)])
                 cmd.extend(['-map', last_stream])
+            else:
+                cmd.extend(['-map', video_spec])
 
             crf_val = str(int(self.slider_crf.get())) if self.check_compress.get() else '20'
             cmd.extend(['-c:v', 'libx264', '-preset', 'slow', '-crf', crf_val])
-            
-            if self.check_mute.get(): cmd.append('-an')
-            
+
+            audio_tracks = track_selection.get("audio") if not self.check_mute.get() else []
+            subtitle_tracks = track_selection.get("subtitle")
+
+            if audio_tracks:
+                for at in audio_tracks:
+                    cmd.extend(['-map', f"0:a:{at.get('type_index', 0)}"])
+                cmd.extend(['-c:a', 'copy'])
+            else:
+                cmd.append('-an')
+
+            if subtitle_tracks:
+                for st in subtitle_tracks:
+                    cmd.extend(['-map', f"0:s:{st.get('type_index', 0)}"])
+                cmd.extend(['-c:s', 'copy'])
+            else:
+                cmd.append('-sn')
+
             cmd.append(output_file)
 
             # استفاده از startupinfo برای مخفی کردن پنجره در ویندوز
