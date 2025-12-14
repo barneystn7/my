@@ -173,10 +173,15 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             font=("Tahoma", 11),
         ).pack(side="left")
 
-        self.track_list = ctk.CTkFrame(self.track_card, fg_color="transparent")
+        self.track_header_row = ctk.CTkFrame(self.track_card, fg_color="transparent")
+        self.track_header_row.pack(fill="x", padx=10, pady=(4, 0))
+        for idx in range(5):
+            self.track_header_row.grid_columnconfigure(idx, weight=1 if idx != 0 else 0, uniform="trackcols")
+
+        self.track_list = ctk.CTkScrollableFrame(self.track_card, fg_color="transparent", height=150)
         self.track_list.pack(fill="x", padx=10, pady=10)
         for idx in range(5):
-            self.track_list.columnconfigure(idx, weight=1 if idx != 0 else 0)
+            self.track_list.grid_columnconfigure(idx, weight=1 if idx != 0 else 0, uniform="trackcols")
         self.track_states = []
 
         # زمان
@@ -314,6 +319,8 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         if not hasattr(self, "track_list"):
             return
 
+        for child in self.track_header_row.winfo_children():
+            child.destroy()
         for child in self.track_list.winfo_children():
             child.destroy()
         self.track_states = []
@@ -322,7 +329,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         for col, text in enumerate(headers):
             anchor = "w" if col == 0 else "e"
             ctk.CTkLabel(
-                self.track_list,
+                self.track_header_row,
                 text=text,
                 font=("Tahoma", 11, "bold"),
                 text_color="gray80",
@@ -339,7 +346,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
                 text_color="gray70",
                 anchor="e",
                 justify="right",
-            ).pack(anchor="e", padx=6, pady=4, fill="x")
+            ).grid(row=0, column=0, columnspan=len(headers), sticky="we", padx=6, pady=4)
             return
 
         tracks = self.extract_tracks(file_path)
@@ -351,7 +358,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
                 text_color="orange",
                 anchor="e",
                 justify="right",
-            ).pack(anchor="e", padx=6, pady=4, fill="x")
+            ).grid(row=0, column=0, columnspan=len(headers), sticky="we", padx=6, pady=4)
             return
 
         for row, track in enumerate(tracks, start=1):
