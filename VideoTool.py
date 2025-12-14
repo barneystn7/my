@@ -175,8 +175,11 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.track_header_row = ctk.CTkFrame(self.track_card, fg_color="transparent")
         self.track_header_row.pack(fill="x", padx=10, pady=(2, 0))
-        for idx in range(5):
-            self.track_header_row.grid_columnconfigure(idx, weight=1 if idx != 0 else 0, uniform="trackcols")
+        self.track_header_row.grid_columnconfigure(0, weight=0, minsize=34)
+        self.track_header_row.grid_columnconfigure(1, weight=1)
+        self.track_header_row.grid_columnconfigure(2, weight=1)
+        self.track_header_row.grid_columnconfigure(3, weight=1)
+        self.track_header_row.grid_columnconfigure(4, weight=2)
 
         self.visible_track_rows = 3
         self.track_row_height = 30
@@ -188,8 +191,11 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.track_list.pack(fill="x", padx=10, pady=(4, 6))
         if hasattr(self.track_list, "_scrollbar"):
             self.track_list._scrollbar.configure(width=12)
-        for idx in range(5):
-            self.track_list.grid_columnconfigure(idx, weight=1 if idx != 0 else 0, uniform="trackcols")
+        self.track_list.grid_columnconfigure(0, weight=0, minsize=34)
+        self.track_list.grid_columnconfigure(1, weight=1)
+        self.track_list.grid_columnconfigure(2, weight=1)
+        self.track_list.grid_columnconfigure(3, weight=1)
+        self.track_list.grid_columnconfigure(4, weight=2)
         self.track_states = []
 
         # زمان
