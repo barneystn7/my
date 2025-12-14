@@ -344,7 +344,8 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.track_body.grid_columnconfigure(2, weight=1)
         self.track_body.grid_columnconfigure(3, weight=1)
         self.track_body.grid_columnconfigure(4, weight=2)
-        self.track_body.grid_propagate(False)
+        if not scrollable:
+            self.track_body.grid_propagate(False)
 
     def get_selected_tracks(self):
         selected = {"video": [], "audio": [], "subtitle": []}
