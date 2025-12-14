@@ -170,8 +170,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # چک باکس‌ها
         self.check_container = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.check_container.pack(pady=5, padx=20, fill="x")
-        self.check_container.columnconfigure(0, weight=1)
+        self.check_container.pack(pady=5, padx=20, anchor="e")
 
         self.check_boomerang = self.add_checkbox("افکت بومرنگ (رفت و برگشت)")
         self.check_mute = self.add_checkbox("حذف صدا")
@@ -215,22 +214,35 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # وضعیت
         self.status_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.status_frame.pack(pady=5, padx=20, fill="x")
+        self.status_frame.pack(pady=5, padx=20, fill="x", anchor="e")
         self.status_frame.columnconfigure(0, weight=1)
 
-        self.label_status = ctk.CTkLabel(self.status_frame, text="آماده...", text_color="gray", font=PERSIAN_FONT, anchor="center")
-        self.label_status.grid(row=0, column=0, sticky="ew")
+        self.label_status = ctk.CTkLabel(
+            self.status_frame,
+            text="آماده...",
+            text_color="gray",
+            font=PERSIAN_FONT,
+            anchor="e",
+            justify="right",
+        )
+        self.label_status.grid(row=0, column=0, sticky="e")
 
         self.progress_bar = ctk.CTkProgressBar(self.status_frame)
         self.progress_bar.set(0)
         self.progress_bar.grid(row=1, column=0, sticky="ew", pady=5)
 
-        self.label_size = ctk.CTkLabel(self.status_frame, text="حجم فایل: 0 MB", font=("Arial", 12), anchor="center")
-        self.label_size.grid(row=2, column=0, sticky="ew", pady=5)
+        self.label_size = ctk.CTkLabel(
+            self.status_frame,
+            text="حجم فایل: 0 MB",
+            font=("Arial", 12),
+            anchor="e",
+            justify="right",
+        )
+        self.label_size.grid(row=2, column=0, sticky="e", pady=5)
 
     def add_checkbox(self, text):
         cb = ctk.CTkCheckBox(self.check_container, text=text.strip(), font=PERSIAN_FONT)
-        cb.grid(row=len(self.check_container.grid_slaves()), column=0, sticky="e", pady=5)
+        cb.pack(pady=5, anchor="e")
         cb.select()
         return cb
 
