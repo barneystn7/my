@@ -219,7 +219,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.label_status = ctk.CTkLabel(
             self.status_frame,
-            text="آماده...",
+            text="\u202Bآماده...\u202C",
             text_color="gray",
             font=PERSIAN_FONT,
             anchor="e",
@@ -242,7 +242,12 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def add_checkbox(self, text):
         cb = ctk.CTkCheckBox(self.check_container, text=text.strip(), font=PERSIAN_FONT)
-        cb.pack(pady=5, anchor="e")
+        # اطمینان از چسبیدن متن به راست و حذف فاصله اضافی ابتدای برچسب
+        try:
+            cb._text_label.configure(anchor="e", justify="right", padx=0)
+        except Exception:
+            pass
+        cb.pack(pady=5, anchor="e", padx=0)
         cb.select()
         return cb
 
