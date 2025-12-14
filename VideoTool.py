@@ -183,6 +183,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.visible_track_rows = 3
         self.track_row_height = 28
+        self.track_list_wrapper = None
         self.track_list = None
         self.track_states = []
 
@@ -310,16 +311,24 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.update_track_list(path)
 
     def build_track_list_widget(self, scrollable=False, height=None):
-        if self.track_list is not None:
-            self.track_list.destroy()
+        if self.track_list_wrapper is not None:
+            self.track_list_wrapper.destroy()
+        self.track_list = None
+
+        self.track_list_wrapper = ctk.CTkFrame(
+            self.track_card, fg_color="transparent", height=height
+        )
+        self.track_list_wrapper.pack(fill="x", padx=10, pady=(4, 6))
+        if height:
+            self.track_list_wrapper.pack_propagate(False)
 
         frame_class = ctk.CTkScrollableFrame if scrollable else ctk.CTkFrame
         kwargs = {"fg_color": "transparent"}
         if scrollable and height:
             kwargs["height"] = height
 
-        self.track_list = frame_class(self.track_card, **kwargs)
-        self.track_list.pack(fill="x", padx=10, pady=(4, 6))
+        self.track_list = frame_class(self.track_list_wrapper, **kwargs)
+        self.track_list.pack(fill="both", expand=True)
 
         if scrollable and hasattr(self.track_list, "_scrollbar"):
             self.track_list._scrollbar.configure(width=14)
@@ -329,6 +338,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.track_list.grid_columnconfigure(2, weight=1)
         self.track_list.grid_columnconfigure(3, weight=1)
         self.track_list.grid_columnconfigure(4, weight=2)
+        self.track_list.grid_propagate(False)
 
     def get_selected_tracks(self):
         selected = {"video": [], "audio": [], "subtitle": []}
@@ -344,8 +354,9 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         for child in self.track_header_row.winfo_children():
             child.destroy()
-        if self.track_list is not None:
-            self.track_list.destroy()
+        if self.track_list_wrapper is not None:
+            self.track_list_wrapper.destroy()
+        self.track_list = None
         self.track_states = []
 
         headers = ["نگه‌دار", "کدک", "نوع", "زبان", "عنوان"]
@@ -362,7 +373,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         file_path = file_path or self.entry_file.get().strip('"')
         if not file_path or not os.path.exists(file_path):
-            self.build_track_list_widget(scrollable=False)
+            self.build_track_list_widget(scrollable=False, height=self.track_row_height)
             ctk.CTkLabel(
                 self.track_list,
                 text="فایلی انتخاب نشده است.",
@@ -375,7 +386,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         tracks = self.extract_tracks(file_path)
         if not tracks:
-            self.build_track_list_widget(scrollable=False)
+            self.build_track_list_widget(scrollable=False, height=self.track_row_height)
             ctk.CTkLabel(
                 self.track_list,
                 text="ترکی یافت نشد یا خواندن فایل ممکن نبود.",
