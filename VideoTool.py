@@ -139,8 +139,6 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.scroll_frame = ctk.CTkScrollableFrame(self, width=500)
         self.scroll_frame.pack(fill="both", expand=True)
 
-        ctk.CTkLabel(self.scroll_frame, text="تنظیمات ویرایش", font=HEADER_FONT).pack(pady=10)
-
         # فایل
         self.frame_file = ctk.CTkFrame(self.scroll_frame)
         self.frame_file.pack(pady=5, padx=20, fill="x")
@@ -251,10 +249,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         wrapper = ctk.CTkFrame(parent, fg_color="transparent")
         wrapper.pack(**pack_opts)
-        wrapper.columnconfigure(1, weight=1)
-
-        cb = ctk.CTkCheckBox(wrapper, text="", width=22)
-        cb.grid(row=0, column=0, padx=(0, 8))
+        wrapper.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             wrapper,
@@ -263,7 +258,10 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             anchor="e",
             justify="right",
             text_color="white",
-        ).grid(row=0, column=1, sticky="e")
+        ).grid(row=0, column=0, sticky="e")
+
+        cb = ctk.CTkCheckBox(wrapper, text="", width=22)
+        cb.grid(row=0, column=1, padx=(8, 0))
 
         cb.select()
         return cb
