@@ -185,6 +185,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.track_row_height = 28
         self.track_list_wrapper = None
         self.track_list = None
+        self.track_body = None
         self.track_states = []
 
         # زمان
@@ -314,6 +315,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         if self.track_list_wrapper is not None:
             self.track_list_wrapper.destroy()
         self.track_list = None
+        self.track_body = None
 
         self.track_list_wrapper = ctk.CTkFrame(
             self.track_card, fg_color="transparent", height=height
@@ -330,15 +332,19 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.track_list = frame_class(self.track_list_wrapper, **kwargs)
         self.track_list.pack(fill="both", expand=True)
 
+        self.track_body = (
+            self.track_list.scrollable_frame if scrollable else self.track_list
+        )
+
         if scrollable and hasattr(self.track_list, "_scrollbar"):
             self.track_list._scrollbar.configure(width=14)
 
-        self.track_list.grid_columnconfigure(0, weight=0, minsize=34)
-        self.track_list.grid_columnconfigure(1, weight=1)
-        self.track_list.grid_columnconfigure(2, weight=1)
-        self.track_list.grid_columnconfigure(3, weight=1)
-        self.track_list.grid_columnconfigure(4, weight=2)
-        self.track_list.grid_propagate(False)
+        self.track_body.grid_columnconfigure(0, weight=0, minsize=34)
+        self.track_body.grid_columnconfigure(1, weight=1)
+        self.track_body.grid_columnconfigure(2, weight=1)
+        self.track_body.grid_columnconfigure(3, weight=1)
+        self.track_body.grid_columnconfigure(4, weight=2)
+        self.track_body.grid_propagate(False)
 
     def get_selected_tracks(self):
         selected = {"video": [], "audio": [], "subtitle": []}
@@ -375,7 +381,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         if not file_path or not os.path.exists(file_path):
             self.build_track_list_widget(scrollable=False, height=self.track_row_height)
             ctk.CTkLabel(
-                self.track_list,
+                self.track_body,
                 text="فایلی انتخاب نشده است.",
                 font=PERSIAN_FONT,
                 text_color="gray70",
@@ -388,7 +394,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         if not tracks:
             self.build_track_list_widget(scrollable=False, height=self.track_row_height)
             ctk.CTkLabel(
-                self.track_list,
+                self.track_body,
                 text="ترکی یافت نشد یا خواندن فایل ممکن نبود.",
                 font=PERSIAN_FONT,
                 text_color="orange",
@@ -404,12 +410,12 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         for row, track in enumerate(tracks, start=1):
             var = tk.BooleanVar(value=True)
-            cb = ctk.CTkCheckBox(self.track_list, text="", width=18, variable=var)
+            cb = ctk.CTkCheckBox(self.track_body, text="", width=18, variable=var)
             cb.grid(row=row, column=0, sticky="w", padx=(0, 6))
-            self.track_list.grid_rowconfigure(row, minsize=self.track_row_height)
+            self.track_body.grid_rowconfigure(row, minsize=self.track_row_height)
 
             ctk.CTkLabel(
-                self.track_list,
+                self.track_body,
                 text=track.get("codec", "-"),
                 font=PERSIAN_FONT,
                 anchor="e",
@@ -418,7 +424,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             ).grid(row=row, column=1, sticky="e", padx=(4, 0))
 
             ctk.CTkLabel(
-                self.track_list,
+                self.track_body,
                 text=track.get("type_label", "-"),
                 font=PERSIAN_FONT,
                 anchor="e",
@@ -427,7 +433,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             ).grid(row=row, column=2, sticky="e", padx=(4, 0))
 
             ctk.CTkLabel(
-                self.track_list,
+                self.track_body,
                 text=track.get("language", "-"),
                 font=PERSIAN_FONT,
                 anchor="e",
@@ -437,7 +443,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
             title = track.get("title") or "—"
             ctk.CTkLabel(
-                self.track_list,
+                self.track_body,
                 text=title,
                 font=PERSIAN_FONT,
                 anchor="e",
