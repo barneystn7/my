@@ -251,10 +251,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         wrapper = ctk.CTkFrame(parent, fg_color="transparent")
         wrapper.pack(**pack_opts)
-        wrapper.columnconfigure(1, weight=1)
-
-        cb = ctk.CTkCheckBox(wrapper, text="", width=22)
-        cb.grid(row=0, column=0, padx=(0, 8))
+        wrapper.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             wrapper,
@@ -263,7 +260,10 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             anchor="e",
             justify="right",
             text_color="white",
-        ).grid(row=0, column=1, sticky="e")
+        ).grid(row=0, column=0, sticky="e")
+
+        cb = ctk.CTkCheckBox(wrapper, text="", width=22)
+        cb.grid(row=0, column=1, padx=(8, 0))
 
         cb.select()
         return cb
