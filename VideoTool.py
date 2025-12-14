@@ -241,17 +241,20 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.label_size.grid(row=2, column=0, sticky="e", pady=5)
 
     def add_checkbox(self, text):
-        cb = ctk.CTkCheckBox(self.check_container, text=text.strip(), font=PERSIAN_FONT)
-        # اطمینان از چسبیدن متن به راست و حذف فاصله اضافی ابتدای برچسب
-        try:
-            cb._text_label.configure(anchor="e", justify="right", padx=0)
-            cb._text_label.grid_configure(padx=(0, 0))
-            cb._text_label.pack_configure(padx=0)
-            if hasattr(cb, "_text_label_padx"):
-                cb._text_label_padx = 0
-        except Exception:
-            pass
-        cb.pack(pady=5, anchor="e", padx=0)
+        wrapper = ctk.CTkFrame(self.check_container, fg_color="transparent")
+        wrapper.pack(pady=5, anchor="e", fill="x")
+
+        cb = ctk.CTkCheckBox(wrapper, text="", width=22)
+        cb.pack(side="left", padx=(0, 8))
+
+        ctk.CTkLabel(
+            wrapper,
+            text=text.strip(),
+            font=PERSIAN_FONT,
+            anchor="e",
+            justify="right",
+        ).pack(side="right", padx=(0, 6))
+
         cb.select()
         return cb
 
