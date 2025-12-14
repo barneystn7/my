@@ -245,6 +245,10 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         # اطمینان از چسبیدن متن به راست و حذف فاصله اضافی ابتدای برچسب
         try:
             cb._text_label.configure(anchor="e", justify="right", padx=0)
+            cb._text_label.grid_configure(padx=(0, 0))
+            cb._text_label.pack_configure(padx=0)
+            if hasattr(cb, "_text_label_padx"):
+                cb._text_label_padx = 0
         except Exception:
             pass
         cb.pack(pady=5, anchor="e", padx=0)
