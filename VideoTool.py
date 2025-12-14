@@ -151,10 +151,10 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # ترک‌های فایل
         self.track_card = ctk.CTkFrame(self.scroll_frame, fg_color=("gray90", "gray22"), corner_radius=10)
-        self.track_card.pack(pady=8, padx=20, fill="x")
+        self.track_card.pack(pady=6, padx=20, fill="x")
 
         track_header = ctk.CTkFrame(self.track_card, fg_color="transparent")
-        track_header.pack(fill="x", pady=(8, 0), padx=10)
+        track_header.pack(fill="x", pady=(6, 0), padx=10)
         ctk.CTkLabel(
             track_header,
             text="ترک‌های فایل",
@@ -174,20 +174,20 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         ).pack(side="left")
 
         self.track_header_row = ctk.CTkFrame(self.track_card, fg_color="transparent")
-        self.track_header_row.pack(fill="x", padx=10, pady=(4, 0))
+        self.track_header_row.pack(fill="x", padx=10, pady=(2, 0))
         for idx in range(5):
             self.track_header_row.grid_columnconfigure(idx, weight=1 if idx != 0 else 0, uniform="trackcols")
 
         self.visible_track_rows = 3
-        self.track_row_height = 34
+        self.track_row_height = 30
         self.track_list = ctk.CTkScrollableFrame(
             self.track_card,
             fg_color="transparent",
             height=self.track_row_height * self.visible_track_rows,
         )
-        self.track_list.pack(fill="x", padx=10, pady=(6, 10))
+        self.track_list.pack(fill="x", padx=10, pady=(4, 6))
         if hasattr(self.track_list, "_scrollbar"):
-            self.track_list._scrollbar.configure(width=8)
+            self.track_list._scrollbar.configure(width=12)
         for idx in range(5):
             self.track_list.grid_columnconfigure(idx, weight=1 if idx != 0 else 0, uniform="trackcols")
         self.track_states = []
