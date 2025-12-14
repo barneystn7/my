@@ -243,9 +243,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
     def add_checkbox(self, text):
         wrapper = ctk.CTkFrame(self.check_container, fg_color="transparent")
         wrapper.pack(pady=5, anchor="e", fill="x")
-
-        cb = ctk.CTkCheckBox(wrapper, text="", width=22)
-        cb.pack(side="left", padx=(0, 8))
+        wrapper.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             wrapper,
@@ -253,7 +251,11 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             font=PERSIAN_FONT,
             anchor="e",
             justify="right",
-        ).pack(side="right", padx=(0, 6))
+            text_color="white",
+        ).grid(row=0, column=0, sticky="e", padx=(0, 6))
+
+        cb = ctk.CTkCheckBox(wrapper, text="", width=22)
+        cb.grid(row=0, column=1, padx=(0, 8))
 
         cb.select()
         return cb
