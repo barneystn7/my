@@ -233,7 +233,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.label_size = ctk.CTkLabel(
             self.status_frame,
-            text="حجم فایل: 0 MB",
+            text="حجم فایل: \u202A0.00 MB\u202C",
             font=("Arial", 12),
             anchor="e",
             justify="right",
@@ -404,7 +404,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
                     if output_file and os.path.exists(output_file):
                         try:
                             size_mb = os.path.getsize(output_file) / (1024 * 1024)
-                            self.label_size.configure(text=f"حجم: {size_mb:.2f} MB")
+                            self.label_size.configure(text=f"حجم: \u202A{size_mb:.2f} MB\u202C")
                         except: pass
 
         except Exception as e:
