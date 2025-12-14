@@ -178,8 +178,16 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         for idx in range(5):
             self.track_header_row.grid_columnconfigure(idx, weight=1 if idx != 0 else 0, uniform="trackcols")
 
-        self.track_list = ctk.CTkScrollableFrame(self.track_card, fg_color="transparent", height=150)
-        self.track_list.pack(fill="x", padx=10, pady=10)
+        self.visible_track_rows = 3
+        self.track_row_height = 34
+        self.track_list = ctk.CTkScrollableFrame(
+            self.track_card,
+            fg_color="transparent",
+            height=self.track_row_height * self.visible_track_rows,
+        )
+        self.track_list.pack(fill="x", padx=10, pady=(6, 10))
+        if hasattr(self.track_list, "_scrollbar"):
+            self.track_list._scrollbar.configure(width=8)
         for idx in range(5):
             self.track_list.grid_columnconfigure(idx, weight=1 if idx != 0 else 0, uniform="trackcols")
         self.track_states = []
@@ -339,6 +347,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         file_path = file_path or self.entry_file.get().strip('"')
         if not file_path or not os.path.exists(file_path):
+            self.track_list.configure(height=self.track_row_height)
             ctk.CTkLabel(
                 self.track_list,
                 text="فایلی انتخاب نشده است.",
@@ -351,6 +360,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         tracks = self.extract_tracks(file_path)
         if not tracks:
+            self.track_list.configure(height=self.track_row_height)
             ctk.CTkLabel(
                 self.track_list,
                 text="ترکی یافت نشد یا خواندن فایل ممکن نبود.",
@@ -361,10 +371,14 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             ).grid(row=0, column=0, columnspan=len(headers), sticky="we", padx=6, pady=4)
             return
 
+        visible_rows = min(len(tracks), self.visible_track_rows)
+        self.track_list.configure(height=self.track_row_height * visible_rows)
+
         for row, track in enumerate(tracks, start=1):
             var = tk.BooleanVar(value=True)
             cb = ctk.CTkCheckBox(self.track_list, text="", width=18, variable=var)
             cb.grid(row=row, column=0, sticky="w", padx=(0, 6))
+            self.track_list.grid_rowconfigure(row, minsize=self.track_row_height)
 
             ctk.CTkLabel(
                 self.track_list,
