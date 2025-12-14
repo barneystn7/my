@@ -182,20 +182,8 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.track_header_row.grid_columnconfigure(4, weight=2)
 
         self.visible_track_rows = 3
-        self.track_row_height = 30
-        self.track_list = ctk.CTkScrollableFrame(
-            self.track_card,
-            fg_color="transparent",
-            height=self.track_row_height * self.visible_track_rows,
-        )
-        self.track_list.pack(fill="x", padx=10, pady=(4, 6))
-        if hasattr(self.track_list, "_scrollbar"):
-            self.track_list._scrollbar.configure(width=12)
-        self.track_list.grid_columnconfigure(0, weight=0, minsize=34)
-        self.track_list.grid_columnconfigure(1, weight=1)
-        self.track_list.grid_columnconfigure(2, weight=1)
-        self.track_list.grid_columnconfigure(3, weight=1)
-        self.track_list.grid_columnconfigure(4, weight=2)
+        self.track_row_height = 28
+        self.track_list = None
         self.track_states = []
 
         # زمان
@@ -321,6 +309,27 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         path = self.entry_file.get().strip('"')
         self.update_track_list(path)
 
+    def build_track_list_widget(self, scrollable=False, height=None):
+        if self.track_list is not None:
+            self.track_list.destroy()
+
+        frame_class = ctk.CTkScrollableFrame if scrollable else ctk.CTkFrame
+        kwargs = {"fg_color": "transparent"}
+        if scrollable and height:
+            kwargs["height"] = height
+
+        self.track_list = frame_class(self.track_card, **kwargs)
+        self.track_list.pack(fill="x", padx=10, pady=(4, 6))
+
+        if scrollable and hasattr(self.track_list, "_scrollbar"):
+            self.track_list._scrollbar.configure(width=14)
+
+        self.track_list.grid_columnconfigure(0, weight=0, minsize=34)
+        self.track_list.grid_columnconfigure(1, weight=1)
+        self.track_list.grid_columnconfigure(2, weight=1)
+        self.track_list.grid_columnconfigure(3, weight=1)
+        self.track_list.grid_columnconfigure(4, weight=2)
+
     def get_selected_tracks(self):
         selected = {"video": [], "audio": [], "subtitle": []}
         for item in getattr(self, "track_states", []):
@@ -330,13 +339,13 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         return selected
 
     def update_track_list(self, file_path=None):
-        if not hasattr(self, "track_list"):
+        if not hasattr(self, "track_header_row"):
             return
 
         for child in self.track_header_row.winfo_children():
             child.destroy()
-        for child in self.track_list.winfo_children():
-            child.destroy()
+        if self.track_list is not None:
+            self.track_list.destroy()
         self.track_states = []
 
         headers = ["نگه‌دار", "کدک", "نوع", "زبان", "عنوان"]
@@ -353,7 +362,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         file_path = file_path or self.entry_file.get().strip('"')
         if not file_path or not os.path.exists(file_path):
-            self.track_list.configure(height=self.track_row_height)
+            self.build_track_list_widget(scrollable=False)
             ctk.CTkLabel(
                 self.track_list,
                 text="فایلی انتخاب نشده است.",
@@ -366,7 +375,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         tracks = self.extract_tracks(file_path)
         if not tracks:
-            self.track_list.configure(height=self.track_row_height)
+            self.build_track_list_widget(scrollable=False)
             ctk.CTkLabel(
                 self.track_list,
                 text="ترکی یافت نشد یا خواندن فایل ممکن نبود.",
@@ -377,8 +386,10 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             ).grid(row=0, column=0, columnspan=len(headers), sticky="we", padx=6, pady=4)
             return
 
+        needs_scroll = len(tracks) > self.visible_track_rows
         visible_rows = min(len(tracks), self.visible_track_rows)
-        self.track_list.configure(height=self.track_row_height * visible_rows)
+        list_height = self.track_row_height * visible_rows
+        self.build_track_list_widget(scrollable=needs_scroll, height=list_height)
 
         for row, track in enumerate(tracks, start=1):
             var = tk.BooleanVar(value=True)
