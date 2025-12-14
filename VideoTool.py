@@ -139,8 +139,6 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.scroll_frame = ctk.CTkScrollableFrame(self, width=500)
         self.scroll_frame.pack(fill="both", expand=True)
 
-        ctk.CTkLabel(self.scroll_frame, text="تنظیمات ویرایش", font=HEADER_FONT).pack(pady=10)
-
         # فایل
         self.frame_file = ctk.CTkFrame(self.scroll_frame)
         self.frame_file.pack(pady=5, padx=20, fill="x")
