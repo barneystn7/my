@@ -5,8 +5,9 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 import subprocess
 import threading
 import os
-import pyperclip 
+import pyperclip
 import re
+import json
 
 # تنظیمات ظاهری
 ctk.set_appearance_mode("Dark")
@@ -134,6 +135,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.build_editor_screen()
         self.entry_file.delete(0, "end")
         self.entry_file.insert(0, file_path)
+        self.update_track_list(file_path)
 
     def build_editor_screen(self):
         self.scroll_frame = ctk.CTkScrollableFrame(self, width=500)
@@ -146,6 +148,33 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.entry_file = ctk.CTkEntry(self.frame_file, placeholder_text="مسیر فایل...", justify="right", font=("Arial", 12))
         self.entry_file.pack(side="right", fill="x", expand=True, padx=10, pady=10)
         self.setup_context_menu(self.entry_file)
+
+        # ترک‌های فایل
+        self.track_card = ctk.CTkFrame(self.scroll_frame, fg_color=("gray90", "gray22"))
+        self.track_card.pack(pady=5, padx=20, fill="x")
+
+        track_header = ctk.CTkFrame(self.track_card, fg_color="transparent")
+        track_header.pack(fill="x", pady=(6, 0), padx=10)
+        ctk.CTkLabel(
+            track_header,
+            text="ترک‌های فایل",
+            font=PERSIAN_FONT,
+            anchor="w",
+            justify="right",
+        ).pack(side="right")
+        ctk.CTkButton(
+            track_header,
+            text="↻ تازه‌سازی",
+            width=90,
+            height=28,
+            command=self.refresh_tracks,
+            fg_color="gray25",
+            hover_color="gray35",
+            font=("Tahoma", 11),
+        ).pack(side="left")
+
+        self.track_list = ctk.CTkScrollableFrame(self.track_card, fg_color="transparent", height=120)
+        self.track_list.pack(fill="x", padx=10, pady=10)
 
         # زمان
         self.frame_time = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
@@ -266,11 +295,101 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         cb.select()
         return cb
 
+    def refresh_tracks(self):
+        path = self.entry_file.get().strip('"')
+        self.update_track_list(path)
+
+    def update_track_list(self, file_path=None):
+        if not hasattr(self, "track_list"):
+            return
+
+        for child in self.track_list.winfo_children():
+            child.destroy()
+
+        file_path = file_path or self.entry_file.get().strip('"')
+        if not file_path or not os.path.exists(file_path):
+            ctk.CTkLabel(
+                self.track_list,
+                text="فایلی انتخاب نشده است.",
+                font=PERSIAN_FONT,
+                text_color="gray70",
+                anchor="e",
+                justify="right",
+            ).pack(anchor="e", padx=6, pady=4, fill="x")
+            return
+
+        tracks = self.extract_tracks(file_path)
+        if not tracks:
+            ctk.CTkLabel(
+                self.track_list,
+                text="ترکی یافت نشد یا خواندن فایل ممکن نبود.",
+                font=PERSIAN_FONT,
+                text_color="orange",
+                anchor="e",
+                justify="right",
+            ).pack(anchor="e", padx=6, pady=4, fill="x")
+            return
+
+        for track in tracks:
+            text = self.format_track_text(track)
+            ctk.CTkLabel(
+                self.track_list,
+                text=text,
+                font=PERSIAN_FONT,
+                anchor="e",
+                justify="right",
+                text_color="white",
+            ).pack(anchor="e", padx=6, pady=4, fill="x")
+
+    def extract_tracks(self, file_path):
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "stream=index,codec_type,codec_name:stream_tags=language,title",
+                    "-of",
+                    "json",
+                    file_path,
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            data = json.loads(result.stdout)
+            return data.get("streams", [])
+        except Exception:
+            return []
+
+    def format_track_text(self, stream_info):
+        stream_type = stream_info.get("codec_type", "نامشخص")
+        codec = (stream_info.get("codec_name") or "").upper()
+        tags = stream_info.get("tags") or {}
+        language = tags.get("language", "").upper()
+        title = tags.get("title", "")
+
+        type_map = {
+            "video": "🎞️ ویدیو",
+            "audio": "🔊 صدا",
+            "subtitle": "💬 زیرنویس",
+        }
+        base = type_map.get(stream_type, "❔ سایر")
+        parts = [part for part in [base, codec] if part]
+
+        extras = [val for val in [language, title] if val]
+        if extras:
+            parts.append(" - ".join(extras))
+
+        return " | ".join(parts)
+
     def browse_file_update(self):
         filename = filedialog.askopenfilename(filetypes=[("Video Files", "*.mp4 *.mkv *.mov *.avi")])
         if filename:
             self.entry_file.delete(0, "end")
             self.entry_file.insert(0, filename)
+            self.update_track_list(filename)
 
     def create_slider(self, name, min_val, max_val, default_val, attr_name, color=None):
         frame = ctk.CTkFrame(self.frame_cine_settings, fg_color="transparent")
