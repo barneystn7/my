@@ -61,13 +61,6 @@ class VideoEditorApp:
             alignment=ft.alignment.center
         )
 
-        drop_target = ft.FileDropTarget(
-            content=self.drop_zone,
-            on_drop=self.on_file_drop,
-            on_enter=self.on_drag_enter,
-            on_leave=self.on_drag_leave
-        )
-
         self.txt_file_path = ft.TextField(
             label="مسیر فایل ویدیو",
             read_only=True,
@@ -191,7 +184,7 @@ class VideoEditorApp:
         main_layout = ft.Container(
             padding=20, # فاصله محتوا از لبه‌ها
             content=ft.Column([
-                drop_target,
+                self.drop_zone,
 
                 # انتخاب فایل
                 ft.Row([self.txt_file_path, self.btn_browse], alignment="center"),
