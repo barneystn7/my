@@ -247,7 +247,12 @@ class VideoEditorApp:
         if e.files: self.load_file(e.files[0].path)
 
     def on_file_drop(self, e):
-        self.load_file(e.path)
+        if e.files:
+            # رویداد دراپ لیست فایل‌ها را برمی‌گرداند
+            self.load_file(e.files[0].path)
+        elif getattr(e, "path", None):
+            # سازگاری با نسخه‌هایی که هنوز path را ست می‌کنند
+            self.load_file(e.path)
 
     def load_file(self, path):
         if not path.lower().endswith(('.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv')):
