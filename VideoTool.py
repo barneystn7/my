@@ -185,7 +185,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.track_row_height = 28
         self.track_list_wrapper = None
         self.track_list = None
-        self.track_body = None
+        self.track_container = None
         self.track_states = []
 
         # زمان
@@ -314,8 +314,6 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
     def build_track_list_widget(self, scrollable=False, height=None):
         if self.track_list_wrapper is not None:
             self.track_list_wrapper.destroy()
-        self.track_list = None
-        self.track_body = None
 
         self.track_list_wrapper = ctk.CTkFrame(
             self.track_card, fg_color="transparent", height=height
@@ -325,29 +323,19 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
             self.track_list_wrapper.pack_propagate(False)
 
         frame_class = ctk.CTkScrollableFrame if scrollable else ctk.CTkFrame
-        kwargs = {"fg_color": "transparent"}
-        if scrollable and height:
-            kwargs["height"] = height
-
+        kwargs = {"fg_color": "transparent", "height": height}
         self.track_list = frame_class(self.track_list_wrapper, **kwargs)
         self.track_list.pack(fill="both", expand=True)
 
-        container_parent = (
+        self.track_container = (
             self.track_list.scrollable_frame if scrollable else self.track_list
         )
-        self.track_body = ctk.CTkFrame(container_parent, fg_color="transparent")
-        self.track_body.pack(fill="both", expand=True)
-        if height:
-            self.track_body.configure(height=height)
-
         if scrollable and hasattr(self.track_list, "_scrollbar"):
-            self.track_list._scrollbar.configure(width=12)
+            self.track_list._scrollbar.configure(width=10)
 
-        self.track_body.grid_columnconfigure(0, weight=0, minsize=34)
-        self.track_body.grid_columnconfigure(1, weight=1)
-        self.track_body.grid_columnconfigure(2, weight=1)
-        self.track_body.grid_columnconfigure(3, weight=1)
-        self.track_body.grid_columnconfigure(4, weight=2)
+        for idx, weight in enumerate([0, 1, 1, 1, 2]):
+            minsize = 34 if idx == 0 else 0
+            self.track_container.grid_columnconfigure(idx, weight=weight, minsize=minsize)
 
     def get_selected_tracks(self):
         selected = {"video": [], "audio": [], "subtitle": []}
@@ -384,26 +372,26 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         if not file_path or not os.path.exists(file_path):
             self.build_track_list_widget(scrollable=False, height=self.track_row_height)
             ctk.CTkLabel(
-                self.track_body,
+                self.track_container,
                 text="فایلی انتخاب نشده است.",
                 font=PERSIAN_FONT,
                 text_color="gray70",
                 anchor="e",
                 justify="right",
-            ).pack(anchor="e", padx=6, pady=4, fill="x")
+            ).grid(row=0, column=0, columnspan=5, sticky="e", padx=6, pady=4)
             return
 
         tracks = self.extract_tracks(file_path)
         if not tracks:
             self.build_track_list_widget(scrollable=False, height=self.track_row_height)
             ctk.CTkLabel(
-                self.track_body,
+                self.track_container,
                 text="ترکی یافت نشد یا خواندن فایل ممکن نبود.",
                 font=PERSIAN_FONT,
                 text_color="orange",
                 anchor="e",
                 justify="right",
-            ).pack(anchor="e", padx=6, pady=4, fill="x")
+            ).grid(row=0, column=0, columnspan=5, sticky="e", padx=6, pady=4)
             return
 
         needs_scroll = len(tracks) > self.visible_track_rows
@@ -411,12 +399,12 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         list_height = self.track_row_height * visible_rows
         self.build_track_list_widget(scrollable=needs_scroll, height=list_height)
 
-        for track in tracks:
+        for idx, track in enumerate(tracks):
             row_frame = ctk.CTkFrame(
-                self.track_body, fg_color="transparent", height=self.track_row_height
+                self.track_container, fg_color="transparent", height=self.track_row_height
             )
-            row_frame.pack(fill="x")
-            row_frame.pack_propagate(False)
+            row_frame.grid(row=idx, column=0, sticky="ew")
+            row_frame.grid_propagate(False)
             row_frame.grid_columnconfigure(0, weight=0, minsize=34)
             row_frame.grid_columnconfigure(1, weight=1)
             row_frame.grid_columnconfigure(2, weight=1)
