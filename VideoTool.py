@@ -5,6 +5,13 @@ import json
 import os
 import re
 
+try:
+    from flet_desktop_drop import DropTarget
+    DESKTOP_DROP_AVAILABLE = True
+except Exception:
+    DropTarget = None
+    DESKTOP_DROP_AVAILABLE = False
+
 # --- تنظیمات رنگ و استایل ---
 COLOR_BG = "#1a1a1a"
 COLOR_CARD = "#2d2d2d"
@@ -47,7 +54,7 @@ class VideoEditorApp:
 
     def build_ui(self):
         # 1. انتخاب فایل
-        self.drop_zone = ft.Container(
+        drop_content = ft.Container(
             content=ft.Column([
                 ft.Icon(ft.Icons.CLOUD_UPLOAD, size=36, color=COLOR_PRIMARY),
                 ft.Text("فایل را اینجا رها کنید", weight="bold", size=16, text_align="center"),
@@ -60,6 +67,9 @@ class VideoEditorApp:
             padding=15,
             alignment=ft.alignment.center
         )
+        drop_content.on_click = lambda _: self.file_picker.pick_files()
+        self.drop_content = drop_content
+        self.drop_zone = self.build_drop_target(drop_content)
 
         self.txt_file_path = ft.TextField(
             label="مسیر فایل ویدیو",
@@ -240,6 +250,20 @@ class VideoEditorApp:
         self.page.add(main_layout)
 
     # --- توابع کمکی ---
+    def build_drop_target(self, content):
+        """مسئول اتصال کتابخانه flet-desktop-drop به کانتینر آپلود."""
+        if DESKTOP_DROP_AVAILABLE and DropTarget is not None:
+            return DropTarget(
+                content=content,
+                on_drop=self.on_desktop_drop,
+                on_enter=self.on_drag_enter,
+                on_leave=self.on_drag_leave,
+            )
+        return content
+
+    def on_desktop_drop(self, e):
+        self.handle_drop_event(e)
+
     def toggle_visibility(self, control, is_visible):
         """نمایش یا مخفی کردن آکاردئون بر اساس سوییچ"""
         control.visible = is_visible
@@ -256,22 +280,40 @@ class VideoEditorApp:
         if e.files: self.load_file(e.files[0].path)
 
     def on_file_drop(self, e):
+        self.handle_drop_event(e)
+
+    def handle_drop_event(self, e):
+        """پردازش مشترک رویداد دراپ از صفحه یا افزونه دسکتاپ."""
         self.on_drag_leave(e)
-        if e.files:
-            # رویداد دراپ لیست فایل‌ها را برمی‌گرداند
-            self.load_file(e.files[0].path)
-        elif getattr(e, "path", None):
-            # سازگاری با نسخه‌هایی که هنوز path را ست می‌کنند
-            self.load_file(e.path)
+        paths = []
+
+        file_objs = getattr(e, "files", None) or []
+        for f in file_objs:
+            path = getattr(f, "path", None) or getattr(f, "name", None)
+            if path:
+                paths.append(path)
+
+        if getattr(e, "path", None):
+            paths.append(e.path)
+
+        if getattr(e, "data", None) and not paths:
+            data = e.data if isinstance(e.data, str) else ""
+            for line in data.splitlines():
+                clean = line.strip()
+                if clean:
+                    paths.append(clean)
+
+        if paths:
+            self.load_file(paths[0])
 
     def on_drag_enter(self, e):
-        self.drop_zone.border = ft.border.all(2, COLOR_PRIMARY)
-        self.drop_zone.bgcolor = "#242424"
+        self.drop_content.border = ft.border.all(2, COLOR_PRIMARY)
+        self.drop_content.bgcolor = "#242424"
         self.page.update()
 
     def on_drag_leave(self, e):
-        self.drop_zone.border = ft.border.all(1, "#444444")
-        self.drop_zone.bgcolor = COLOR_CARD
+        self.drop_content.border = ft.border.all(1, "#444444")
+        self.drop_content.bgcolor = COLOR_CARD
         self.page.update()
 
     def load_file(self, path):
