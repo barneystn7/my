@@ -332,20 +332,22 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.track_list = frame_class(self.track_list_wrapper, **kwargs)
         self.track_list.pack(fill="both", expand=True)
 
-        self.track_body = (
+        container_parent = (
             self.track_list.scrollable_frame if scrollable else self.track_list
         )
+        self.track_body = ctk.CTkFrame(container_parent, fg_color="transparent")
+        self.track_body.pack(fill="both", expand=True)
+        if height:
+            self.track_body.configure(height=height)
 
         if scrollable and hasattr(self.track_list, "_scrollbar"):
-            self.track_list._scrollbar.configure(width=14)
+            self.track_list._scrollbar.configure(width=12)
 
         self.track_body.grid_columnconfigure(0, weight=0, minsize=34)
         self.track_body.grid_columnconfigure(1, weight=1)
         self.track_body.grid_columnconfigure(2, weight=1)
         self.track_body.grid_columnconfigure(3, weight=1)
         self.track_body.grid_columnconfigure(4, weight=2)
-        if not scrollable:
-            self.track_body.grid_propagate(False)
 
     def get_selected_tracks(self):
         selected = {"video": [], "audio": [], "subtitle": []}
@@ -388,7 +390,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
                 text_color="gray70",
                 anchor="e",
                 justify="right",
-            ).grid(row=0, column=0, columnspan=len(headers), sticky="we", padx=6, pady=4)
+            ).pack(anchor="e", padx=6, pady=4, fill="x")
             return
 
         tracks = self.extract_tracks(file_path)
@@ -401,7 +403,7 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
                 text_color="orange",
                 anchor="e",
                 justify="right",
-            ).grid(row=0, column=0, columnspan=len(headers), sticky="we", padx=6, pady=4)
+            ).pack(anchor="e", padx=6, pady=4, fill="x")
             return
 
         needs_scroll = len(tracks) > self.visible_track_rows
@@ -409,48 +411,59 @@ class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
         list_height = self.track_row_height * visible_rows
         self.build_track_list_widget(scrollable=needs_scroll, height=list_height)
 
-        for row, track in enumerate(tracks, start=1):
+        for track in tracks:
+            row_frame = ctk.CTkFrame(
+                self.track_body, fg_color="transparent", height=self.track_row_height
+            )
+            row_frame.pack(fill="x")
+            row_frame.pack_propagate(False)
+            row_frame.grid_columnconfigure(0, weight=0, minsize=34)
+            row_frame.grid_columnconfigure(1, weight=1)
+            row_frame.grid_columnconfigure(2, weight=1)
+            row_frame.grid_columnconfigure(3, weight=1)
+            row_frame.grid_columnconfigure(4, weight=2)
+
             var = tk.BooleanVar(value=True)
-            cb = ctk.CTkCheckBox(self.track_body, text="", width=18, variable=var)
-            cb.grid(row=row, column=0, sticky="w", padx=(0, 6))
-            self.track_body.grid_rowconfigure(row, minsize=self.track_row_height)
+            ctk.CTkCheckBox(row_frame, text="", width=18, variable=var).grid(
+                row=0, column=0, sticky="w", padx=(0, 6)
+            )
 
             ctk.CTkLabel(
-                self.track_body,
+                row_frame,
                 text=track.get("codec", "-"),
                 font=PERSIAN_FONT,
                 anchor="e",
                 justify="right",
                 text_color="white",
-            ).grid(row=row, column=1, sticky="e", padx=(4, 0))
+            ).grid(row=0, column=1, sticky="e", padx=(4, 0))
 
             ctk.CTkLabel(
-                self.track_body,
+                row_frame,
                 text=track.get("type_label", "-"),
                 font=PERSIAN_FONT,
                 anchor="e",
                 justify="right",
                 text_color="gray90",
-            ).grid(row=row, column=2, sticky="e", padx=(4, 0))
+            ).grid(row=0, column=2, sticky="e", padx=(4, 0))
 
             ctk.CTkLabel(
-                self.track_body,
+                row_frame,
                 text=track.get("language", "-"),
                 font=PERSIAN_FONT,
                 anchor="e",
                 justify="right",
                 text_color="gray80",
-            ).grid(row=row, column=3, sticky="e", padx=(4, 0))
+            ).grid(row=0, column=3, sticky="e", padx=(4, 0))
 
             title = track.get("title") or "—"
             ctk.CTkLabel(
-                self.track_body,
+                row_frame,
                 text=title,
                 font=PERSIAN_FONT,
                 anchor="e",
                 justify="right",
                 text_color="white",
-            ).grid(row=row, column=4, sticky="e")
+            ).grid(row=0, column=4, sticky="e")
 
             self.track_states.append({"var": var, "track": track})
 
