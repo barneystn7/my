@@ -1,706 +1,418 @@
-import customtkinter as ctk
-from tkinter import filedialog, Menu, END
-import tkinter as tk
-from tkinterdnd2 import DND_FILES, TkinterDnD
+import flet as ft
 import subprocess
 import threading
-import os
-import pyperclip
-import re
 import json
+import os
+import re
 
-# تنظیمات ظاهری
-ctk.set_appearance_mode("Dark")
-ctk.set_default_color_theme("blue")
+# --- تنظیمات رنگ و استایل ---
+COLOR_BG = "#1a1a1a"
+COLOR_CARD = "#2d2d2d"
+COLOR_PRIMARY = "#3b8ed0"
+COLOR_SUCCESS = "#00c853"
+COLOR_TEXT_SEC = "#aaaaaa"
 
-PERSIAN_FONT = ("Tahoma", 12)
-HEADER_FONT = ("Tahoma", 20, "bold")
-DIGIT_FONT = ("Arial", 14, "bold") 
-
-class SuccessDialog(ctk.CTkToplevel):
-    def __init__(self, parent, file_path):
-        super().__init__(parent)
-        self.file_path = file_path.replace("/", "\\")
-        self.title("موفقیت")
-        self.geometry("400x250")
-        self.resizable(False, False)
-        self.attributes("-topmost", True)
-        try:
-            x = parent.winfo_x() + (parent.winfo_width() // 2) - 200
-            y = parent.winfo_y() + (parent.winfo_height() // 2) - 125
-            self.geometry(f"+{x}+{y}")
-        except: pass
-        ctk.CTkLabel(self, text="✅", font=("Arial", 60)).pack(pady=(20, 10))
-        ctk.CTkLabel(self, text="ویدیو با موفقیت ساخته شد", font=HEADER_FONT, text_color="lightgreen").pack(pady=5)
+class VideoEditorApp:
+    def __init__(self, page: ft.Page):
+        self.page = page
+        self.setup_page()
         
-        filename = os.path.basename(file_path)
-        if len(filename) > 40: filename = filename[:37] + "..."
-        ctk.CTkLabel(self, text=filename, text_color="gray70", font=("Arial", 12)).pack(pady=5)
+        # متغیرهای ذخیره اطلاعات
+        self.selected_file = None
+        self.tracks_data = []
         
-        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(pady=20, fill="x", padx=20)
+        self.build_ui()
+
+    def setup_page(self):
+        self.page.title = "ویرایشگر هوشمند ویدیو"
         
-        ctk.CTkButton(btn_frame, text="بستن", command=self.destroy, fg_color="transparent", border_width=1, text_color="gray90", font=PERSIAN_FONT).pack(side="left", expand=True, padx=5)
-        ctk.CTkButton(btn_frame, text="📂 باز کردن پوشه", command=self.open_folder, fg_color="#3B8ED0", hover_color="#36719F", font=PERSIAN_FONT).pack(side="right", expand=True, padx=5)
-
-    def open_folder(self):
-        if os.path.exists(self.file_path):
-            subprocess.Popen(f'explorer /select,"{self.file_path}"')
-            self.destroy()
-
-class VideoEditorApp(ctk.CTk, TkinterDnD.DnDWrapper):
-    def __init__(self):
-        super().__init__()
-        self.TkdndVersion = TkinterDnD._require(self)
-        self.title("برش‌دهنده هوشمند")
-        self.geometry("520x550") 
-        self.resizable(True, True)
-        self.selected_file_path = None
-
-        self.bind_all("<Key>", self.handle_global_keys)
-
-        self.frame_welcome = ctk.CTkFrame(self, fg_color="transparent")
-        self.frame_welcome.pack(fill="both", expand=True, padx=20, pady=20)
-        self.build_welcome_ui()
-        self.drop_target_register(DND_FILES)
-        self.dnd_bind('<<Drop>>', self.on_drop)
-
-    def handle_global_keys(self, event):
-        if event.state & 4:
-            if event.keysym.lower() in ['c', 'v', 'x', 'a']: return 
-            widget = self.focus_get()
-            if not isinstance(widget, tk.Entry): return
-            code = event.keycode
-            if code == 67:   self.perform_action(widget, "copy")
-            elif code == 86: self.perform_action(widget, "paste")
-            elif code == 88: self.perform_action(widget, "cut")
-            elif code == 65: self.perform_action(widget, "select_all")
-            return "break"
-
-    def perform_action(self, widget, action):
-        try:
-            if action == "copy" and widget.selection_present():
-                pyperclip.copy(widget.selection_get())
-            elif action == "cut" and widget.selection_present():
-                pyperclip.copy(widget.selection_get())
-                widget.delete("sel.first", "sel.last")
-            elif action == "paste":
-                text = pyperclip.paste()
-                if text:
-                    try: widget.delete("sel.first", "sel.last")
-                    except: pass
-                    widget.insert("insert", text)
-            elif action == "select_all":
-                widget.select_range(0, END)
-                widget.icursor(END)
-        except: pass
-
-    def setup_context_menu(self, ctk_entry):
-        entry = ctk_entry._entry
-        menu = Menu(self, tearoff=0)
-        menu.add_command(label="Cut", command=lambda: self.perform_action(entry, "cut"))
-        menu.add_command(label="Copy", command=lambda: self.perform_action(entry, "copy"))
-        menu.add_command(label="Paste", command=lambda: self.perform_action(entry, "paste"))
-        menu.add_separator()
-        menu.add_command(label="Select All", command=lambda: self.perform_action(entry, "select_all"))
-        def show_menu(event):
-            entry.focus_set()
-            menu.tk_popup(event.x_root, event.y_root)
-        entry.bind("<Button-3>", show_menu)
-        entry.bind("<Button-1>", lambda e: entry.focus_set())
-
-    def build_welcome_ui(self):
-        ctk.CTkLabel(self.frame_welcome, text="", height=50).pack()
-        ctk.CTkLabel(self.frame_welcome, text="📂", font=("Arial", 80)).pack(pady=10)
-        ctk.CTkLabel(self.frame_welcome, text="فایل ویدیو را اینجا رها کنید", font=HEADER_FONT).pack(pady=5)
-        ctk.CTkLabel(self.frame_welcome, text="- یا -", text_color="gray", font=PERSIAN_FONT).pack(pady=10)
-        ctk.CTkButton(self.frame_welcome, text="انتخاب فایل از سیستم", height=50, font=PERSIAN_FONT, command=self.browse_file_initial).pack(pady=10, padx=50, fill="x")
-
-    def on_drop(self, event):
-        file_path = event.data.strip('{}')
-        if self.is_valid_video(file_path):
-            self.transition_to_editor(file_path)
-        else: self.bell()
-
-    def browse_file_initial(self):
-        filename = filedialog.askopenfilename(filetypes=[("Video Files", "*.mp4 *.mkv *.mov *.avi *.webm")])
-        if filename: self.transition_to_editor(filename)
-
-    def is_valid_video(self, path):
-        return path.lower().endswith(('.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv'))
-
-    def transition_to_editor(self, file_path):
-        self.selected_file_path = file_path
-        self.frame_welcome.pack_forget()
-        self.build_editor_screen()
-        self.entry_file.delete(0, "end")
-        self.entry_file.insert(0, file_path)
-        self.update_track_list(file_path)
-
-    def build_editor_screen(self):
-        self.scroll_frame = ctk.CTkScrollableFrame(self, width=500)
-        self.scroll_frame.pack(fill="both", expand=True)
-
-        # فایل
-        self.frame_file = ctk.CTkFrame(self.scroll_frame)
-        self.frame_file.pack(pady=5, padx=20, fill="x")
-        ctk.CTkButton(self.frame_file, text="🔄", width=40, command=self.browse_file_update).pack(side="left", padx=10)
-        self.entry_file = ctk.CTkEntry(self.frame_file, placeholder_text="مسیر فایل...", justify="right", font=("Arial", 12))
-        self.entry_file.pack(side="right", fill="x", expand=True, padx=10, pady=10)
-        self.setup_context_menu(self.entry_file)
-
-        # ترک‌های فایل
-        self.track_card = ctk.CTkFrame(self.scroll_frame, fg_color=("gray90", "gray22"), corner_radius=10)
-        self.track_card.pack(pady=6, padx=20, fill="x")
-
-        track_header = ctk.CTkFrame(self.track_card, fg_color="transparent")
-        track_header.pack(fill="x", pady=(6, 0), padx=10)
-        ctk.CTkLabel(
-            track_header,
-            text="ترک‌های فایل",
-            font=PERSIAN_FONT,
-            anchor="w",
-            justify="right",
-        ).pack(side="right")
-        ctk.CTkButton(
-            track_header,
-            text="↻ تازه‌سازی",
-            width=90,
-            height=28,
-            command=self.refresh_tracks,
-            fg_color="gray25",
-            hover_color="gray35",
-            font=("Tahoma", 11),
-        ).pack(side="left")
-
-        self.track_header_row = ctk.CTkFrame(self.track_card, fg_color="transparent")
-        self.track_header_row.pack(fill="x", padx=10, pady=(2, 0))
-        self.track_header_row.grid_columnconfigure(0, weight=0, minsize=34)
-        self.track_header_row.grid_columnconfigure(1, weight=1)
-        self.track_header_row.grid_columnconfigure(2, weight=1)
-        self.track_header_row.grid_columnconfigure(3, weight=1)
-        self.track_header_row.grid_columnconfigure(4, weight=2)
-
-        self.visible_track_rows = 3
-        self.track_row_height = 28
-        self.track_list_wrapper = None
-        self.track_list = None
-        self.track_body = None
-        self.track_states = []
-
-        # زمان
-        self.frame_time = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.frame_time.pack(pady=5, padx=20, fill="x")
-        self.time_container = ctk.CTkFrame(self.frame_time, fg_color="transparent")
-        self.time_container.pack(expand=True)
-
-        self.entry_start = ctk.CTkEntry(self.time_container, width=140, placeholder_text="Start", justify="left", font=DIGIT_FONT)
-        self.entry_start.pack(side="left", padx=(0, 5)) 
-        self.entry_start.insert(0, "00:00:00.000")
-        self.setup_context_menu(self.entry_start)
-
-        lbl_sep = ctk.CTkLabel(self.time_container, text="➜", font=("Arial", 20, "bold"), text_color="gray")
-        lbl_sep.pack(side="left", padx=5)
-
-        self.entry_end = ctk.CTkEntry(self.time_container, width=140, placeholder_text="End", justify="left", font=DIGIT_FONT)
-        self.entry_end.pack(side="left", padx=(5, 0))
-        self.entry_end.insert(0, "00:00:05.500")
-        self.setup_context_menu(self.entry_end)
-
-        # چک باکس‌ها
-        self.check_container = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.check_container.pack(pady=5, padx=20, anchor="e")
-
-        self.check_boomerang = self.add_checkbox(
-            self.check_container, "افکت بومرنگ (رفت و برگشت)")
-        self.check_mute = self.add_checkbox(self.check_container, "حذف صدا")
+        # تنظیمات پنجره
+        self.page.window.width = 520
+        self.page.window.height = 600 # کمی کوتاه‌تر شد چون یک دکمه حذف شد
+        self.page.window.center()
         
-        # --- فشرده سازی ---
-        self.frame_compress_header = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.frame_compress_header.pack(pady=5, padx=20, fill="x")
-        self.btn_compress_acc = ctk.CTkButton(self.frame_compress_header, text="🔽 تنظیمات", width=80, height=24, fg_color="gray30", hover_color="gray40", command=self.toggle_compress_accordion, font=PERSIAN_FONT)
-        self.btn_compress_acc.pack(side="left")
-        self.check_compress = self.add_checkbox(
-            self.frame_compress_header,
-            "فشرده‌سازی هوشمند (CRF)",
-            pack_opts={"side": "right", "pady": 0, "anchor": "e"},
+        # تنظیمات اسکرول و جهت
+        self.page.scroll = ft.ScrollMode.AUTO
+        self.page.theme_mode = ft.ThemeMode.DARK
+        self.page.bgcolor = COLOR_BG
+        self.page.rtl = True  # برنامه راست‌چین است
+        self.page.padding = 0 # صفر کردن پدینگ برای چسبیدن اسکرول‌بار به لبه
+        
+        # تنظیم فونت
+        self.page.fonts = {"Persian": "Tahoma"}
+        self.page.theme = ft.Theme(font_family="Persian")
+        
+        # فعال‌سازی درگ اند دراپ
+        self.page.on_file_drop = self.on_file_drop
+
+    def build_ui(self):
+        # 1. انتخاب فایل
+        self.txt_file_path = ft.TextField(
+            label="مسیر فایل ویدیو", 
+            read_only=True, 
+            expand=True, 
+            text_size=12, 
+            border_color=COLOR_PRIMARY, 
+            prefix_icon=ft.Icons.VIDEO_FILE 
+        )
+        
+        self.btn_browse = ft.IconButton(
+            icon=ft.Icons.FOLDER_OPEN,
+            icon_color=COLOR_PRIMARY,
+            tooltip="انتخاب فایل",
+            on_click=lambda _: self.file_picker.pick_files()
         )
 
-        self.frame_compress_settings = ctk.CTkFrame(self.scroll_frame, fg_color=("gray90", "gray20"))
-        self.lbl_compress_info = ctk.CTkLabel(self.frame_compress_settings, text="CRF: 28 (فشرده و استاندارد)", font=PERSIAN_FONT, text_color="cyan")
-        self.lbl_compress_info.pack(pady=(10, 0))
-        self.slider_crf = ctk.CTkSlider(self.frame_compress_settings, from_=18, to=35, number_of_steps=17, command=self.update_compress_label)
-        self.slider_crf.set(28)
-        self.slider_crf.pack(fill="x", padx=20, pady=10)
-
-        # --- سینماتیک ---
-        self.frame_cine_header = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.frame_cine_header.pack(pady=5, padx=20, fill="x")
-        self.btn_cine_acc = ctk.CTkButton(self.frame_cine_header, text="🔽 تنظیمات", width=80, height=24, fg_color="gray30", hover_color="gray40", command=self.toggle_cine_accordion, font=PERSIAN_FONT)
-        self.btn_cine_acc.pack(side="left")
-        self.check_cinematic = self.add_checkbox(
-            self.frame_cine_header,
-            "حالت سینماتیک (رنگ و نور)",
-            pack_opts={"side": "right", "pady": 0, "anchor": "e"},
+        # 2. لیست ترک‌ها (با اسکرول داخلی ثابت)
+        self.track_list = ft.ListView(
+            expand=True, 
+            spacing=5, 
+            padding=5,
+            auto_scroll=False 
+        )
+        
+        self.track_container = ft.Container(
+            content=self.track_list,
+            border=ft.border.all(1, "#444444"),
+            border_radius=8,
+            bgcolor=COLOR_CARD,
+            padding=5,
+            height=150, # ارتفاع ثابت
         )
 
-        self.frame_cine_settings = ctk.CTkFrame(self.scroll_frame, fg_color=("gray90", "gray20"))
-        self.create_slider("کنتراست", 0.5, 2.0, 1.2, "contrast")
-        self.create_slider("روشنایی", -0.5, 0.5, -0.05, "brightness")
-        self.create_slider("غلطت رنگ", 0.0, 3.0, 1.3, "saturation")
-        ctk.CTkLabel(self.frame_cine_settings, text="--- تعادل رنگ ---", font=PERSIAN_FONT).pack(pady=2)
-        self.create_slider("قرمز", 0.5, 1.5, 1.2, "gamma_r", "#ff5555")
-        self.create_slider("آبی", 0.5, 1.5, 0.85, "gamma_b", "#5555ff")
+        # 3. زمان‌بندی
+        self.txt_start = ft.TextField(label="شروع", value="00:00:00.000", width=130, text_align="center", text_size=13)
+        self.txt_end = ft.TextField(label="پایان", value="00:00:05.500", width=130, text_align="center", text_size=13)
 
-        # دکمه شروع
-        self.btn_run = ctk.CTkButton(self.scroll_frame, text="شروع پردازش", height=45, font=HEADER_FONT, fg_color="green", hover_color="darkgreen", command=self.start_process_thread)
-        self.btn_run.pack(pady=20, padx=20, fill="x")
+        # 4. تنظیمات هوشمند (سوییچ + آکاردئون)
 
-        # وضعیت
-        self.status_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent")
-        self.status_frame.pack(pady=5, padx=20, fill="x", anchor="e")
-        self.status_frame.columnconfigure(0, weight=1)
+        # --- الف) بخش فشرده‌سازی ---
+        self.slider_crf = ft.Slider(min=18, max=35, divisions=17, value=28, label="{value}")
+        self.txt_crf_info = ft.Text("CRF: 28 (استاندارد)", size=12, color=COLOR_PRIMARY)
+        self.slider_crf.on_change = lambda e: setattr(self.txt_crf_info, "value", f"CRF: {int(e.control.value)}") or self.page.update()
 
-        self.label_status = ctk.CTkLabel(
-            self.status_frame,
-            text="\u202Bآماده...\u202C",
-            text_color="gray",
-            font=PERSIAN_FONT,
-            anchor="e",
-            justify="right",
-        )
-        self.label_status.grid(row=0, column=0, sticky="e")
-
-        self.progress_bar = ctk.CTkProgressBar(self.status_frame)
-        self.progress_bar.set(0)
-        self.progress_bar.grid(row=1, column=0, sticky="ew", pady=5)
-
-        self.label_size = ctk.CTkLabel(
-            self.status_frame,
-            text="حجم فایل: \u202A0.00 MB\u202C",
-            font=("Arial", 12),
-            anchor="e",
-            justify="right",
-        )
-        self.label_size.grid(row=2, column=0, sticky="e", pady=5)
-
-    def add_checkbox(self, parent, text, pack_opts=None):
-        if pack_opts is None:
-            pack_opts = {"pady": 5, "anchor": "e", "fill": "x"}
-
-        wrapper = ctk.CTkFrame(parent, fg_color="transparent")
-        wrapper.pack(**pack_opts)
-        wrapper.columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(
-            wrapper,
-            text=text.strip(),
-            font=PERSIAN_FONT,
-            anchor="e",
-            justify="right",
-            text_color="white",
-        ).grid(row=0, column=0, sticky="e")
-
-        cb = ctk.CTkCheckBox(wrapper, text="", width=22)
-        cb.grid(row=0, column=1, padx=(8, 0))
-
-        cb.select()
-        return cb
-
-    def refresh_tracks(self):
-        path = self.entry_file.get().strip('"')
-        self.update_track_list(path)
-
-    def build_track_list_widget(self, scrollable=False, height=None):
-        if self.track_list_wrapper is not None:
-            self.track_list_wrapper.destroy()
-        self.track_list = None
-        self.track_body = None
-
-        self.track_list_wrapper = ctk.CTkFrame(
-            self.track_card, fg_color="transparent", height=height
-        )
-        self.track_list_wrapper.pack(fill="x", padx=10, pady=(4, 6))
-        if height:
-            self.track_list_wrapper.pack_propagate(False)
-
-        frame_class = ctk.CTkScrollableFrame if scrollable else ctk.CTkFrame
-        kwargs = {"fg_color": "transparent"}
-        if scrollable and height:
-            kwargs["height"] = height
-
-        self.track_list = frame_class(self.track_list_wrapper, **kwargs)
-        self.track_list.pack(fill="both", expand=True)
-
-        self.track_body = (
-            self.track_list.scrollable_frame if scrollable else self.track_list
-        )
-
-        if scrollable and hasattr(self.track_list, "_scrollbar"):
-            self.track_list._scrollbar.configure(width=14)
-
-        self.track_body.grid_columnconfigure(0, weight=0, minsize=34)
-        self.track_body.grid_columnconfigure(1, weight=1)
-        self.track_body.grid_columnconfigure(2, weight=1)
-        self.track_body.grid_columnconfigure(3, weight=1)
-        self.track_body.grid_columnconfigure(4, weight=2)
-        if not scrollable:
-            self.track_body.grid_propagate(False)
-
-    def get_selected_tracks(self):
-        selected = {"video": [], "audio": [], "subtitle": []}
-        for item in getattr(self, "track_states", []):
-            if item.get("var") and item["var"].get():
-                track = item.get("track", {})
-                selected.setdefault(track.get("type"), []).append(track)
-        return selected
-
-    def update_track_list(self, file_path=None):
-        if not hasattr(self, "track_header_row"):
-            return
-
-        for child in self.track_header_row.winfo_children():
-            child.destroy()
-        if self.track_list_wrapper is not None:
-            self.track_list_wrapper.destroy()
-        self.track_list = None
-        self.track_states = []
-
-        headers = ["نگه‌دار", "کدک", "نوع", "زبان", "عنوان"]
-        for col, text in enumerate(headers):
-            anchor = "w" if col == 0 else "e"
-            ctk.CTkLabel(
-                self.track_header_row,
-                text=text,
-                font=("Tahoma", 11, "bold"),
-                text_color="gray80",
-                anchor=anchor,
-                justify="right",
-            ).grid(row=0, column=col, sticky="we", pady=(0, 6))
-
-        file_path = file_path or self.entry_file.get().strip('"')
-        if not file_path or not os.path.exists(file_path):
-            self.build_track_list_widget(scrollable=False, height=self.track_row_height)
-            ctk.CTkLabel(
-                self.track_body,
-                text="فایلی انتخاب نشده است.",
-                font=PERSIAN_FONT,
-                text_color="gray70",
-                anchor="e",
-                justify="right",
-            ).grid(row=0, column=0, columnspan=len(headers), sticky="we", padx=6, pady=4)
-            return
-
-        tracks = self.extract_tracks(file_path)
-        if not tracks:
-            self.build_track_list_widget(scrollable=False, height=self.track_row_height)
-            ctk.CTkLabel(
-                self.track_body,
-                text="ترکی یافت نشد یا خواندن فایل ممکن نبود.",
-                font=PERSIAN_FONT,
-                text_color="orange",
-                anchor="e",
-                justify="right",
-            ).grid(row=0, column=0, columnspan=len(headers), sticky="we", padx=6, pady=4)
-            return
-
-        needs_scroll = len(tracks) > self.visible_track_rows
-        visible_rows = min(len(tracks), self.visible_track_rows)
-        list_height = self.track_row_height * visible_rows
-        self.build_track_list_widget(scrollable=needs_scroll, height=list_height)
-
-        for row, track in enumerate(tracks, start=1):
-            var = tk.BooleanVar(value=True)
-            cb = ctk.CTkCheckBox(self.track_body, text="", width=18, variable=var)
-            cb.grid(row=row, column=0, sticky="w", padx=(0, 6))
-            self.track_body.grid_rowconfigure(row, minsize=self.track_row_height)
-
-            ctk.CTkLabel(
-                self.track_body,
-                text=track.get("codec", "-"),
-                font=PERSIAN_FONT,
-                anchor="e",
-                justify="right",
-                text_color="white",
-            ).grid(row=row, column=1, sticky="e", padx=(4, 0))
-
-            ctk.CTkLabel(
-                self.track_body,
-                text=track.get("type_label", "-"),
-                font=PERSIAN_FONT,
-                anchor="e",
-                justify="right",
-                text_color="gray90",
-            ).grid(row=row, column=2, sticky="e", padx=(4, 0))
-
-            ctk.CTkLabel(
-                self.track_body,
-                text=track.get("language", "-"),
-                font=PERSIAN_FONT,
-                anchor="e",
-                justify="right",
-                text_color="gray80",
-            ).grid(row=row, column=3, sticky="e", padx=(4, 0))
-
-            title = track.get("title") or "—"
-            ctk.CTkLabel(
-                self.track_body,
-                text=title,
-                font=PERSIAN_FONT,
-                anchor="e",
-                justify="right",
-                text_color="white",
-            ).grid(row=row, column=4, sticky="e")
-
-            self.track_states.append({"var": var, "track": track})
-
-    def extract_tracks(self, file_path):
-        try:
-            result = subprocess.run(
-                [
-                    "ffprobe",
-                    "-v",
-                    "error",
-                    "-show_entries",
-                    "stream=index,codec_type,codec_name:stream_tags=language,title",
-                    "-of",
-                    "json",
-                    file_path,
-                ],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            data = json.loads(result.stdout)
-            streams = data.get("streams", [])
-
-            counts = {"video": 0, "audio": 0, "subtitle": 0}
-            labels = {"video": "ویدیو", "audio": "صدا", "subtitle": "زیرنویس"}
-
-            parsed = []
-            for stream in streams:
-                stype = stream.get("codec_type", "other")
-                type_idx = counts.get(stype, 0)
-                counts[stype] = type_idx + 1
-
-                tags = stream.get("tags") or {}
-                parsed.append(
-                    {
-                        "index": stream.get("index"),
-                        "type": stype,
-                        "type_index": type_idx,
-                        "type_label": labels.get(stype, "سایر"),
-                        "codec": (stream.get("codec_name") or "").upper() or "—",
-                        "language": (tags.get("language") or "").upper() or "—",
-                        "title": tags.get("title", ""),
-                    }
+        # آکاردئون فشرده‌سازی
+        self.exp_compress = ft.ExpansionTile(
+            title=ft.Text("تنظیمات فشرده‌سازی", size=13),
+            leading=ft.Icon(ft.Icons.COMPRESS, size=20),
+            collapsed_text_color=COLOR_TEXT_SEC,
+            initially_expanded=False,
+            visible=True, # پیش‌فرض روشن
+            controls=[
+                ft.Container(
+                    content=ft.Column([self.txt_crf_info, self.slider_crf]),
+                    padding=15, bgcolor="#222222", border_radius=10
                 )
+            ]
+        )
+        # سوییچ فشرده‌سازی
+        self.sw_compress = ft.Switch(
+            label="فشرده‌سازی (CRF)", value=True, active_color=COLOR_PRIMARY,
+            on_change=lambda e: self.toggle_visibility(self.exp_compress, e.control.value)
+        )
 
-            return parsed
-        except Exception:
-            return []
+        # --- ب) بخش سینماتیک ---
+        self.sl_con = self.create_slider("کنتراست", 0.5, 2.0, 1.2)
+        self.sl_bri = self.create_slider("روشنایی", -0.5, 0.5, -0.05)
+        self.sl_sat = self.create_slider("غلظت رنگ", 0.0, 3.0, 1.3)
+        self.sl_gam_r = self.create_slider("قرمز", 0.5, 1.5, 1.2, "red") 
+        self.sl_gam_b = self.create_slider("آبی", 0.5, 1.5, 0.85, "blue")
 
-    def browse_file_update(self):
-        filename = filedialog.askopenfilename(filetypes=[("Video Files", "*.mp4 *.mkv *.mov *.avi")])
-        if filename:
-            self.entry_file.delete(0, "end")
-            self.entry_file.insert(0, filename)
-            self.update_track_list(filename)
+        # آکاردئون سینماتیک
+        self.exp_cine = ft.ExpansionTile(
+            title=ft.Text("تنظیمات رنگ و نور", size=13),
+            leading=ft.Icon(ft.Icons.COLOR_LENS, size=20),
+            collapsed_text_color=COLOR_TEXT_SEC,
+            initially_expanded=False,
+            visible=True,
+            controls=[
+                ft.Container(
+                    content=ft.Column([
+                        self.sl_con, self.sl_bri, self.sl_sat,
+                        ft.Divider(height=10, color="transparent"),
+                        ft.Text("تعادل رنگ RGB", size=12, color=COLOR_TEXT_SEC),
+                        self.sl_gam_r, self.sl_gam_b
+                    ]),
+                    padding=15, bgcolor="#222222", border_radius=10
+                )
+            ]
+        )
+        # سوییچ سینماتیک
+        self.sw_cine = ft.Switch(
+            label="حالت سینماتیک", value=True, active_color=COLOR_PRIMARY,
+            on_change=lambda e: self.toggle_visibility(self.exp_cine, e.control.value)
+        )
 
-    def create_slider(self, name, min_val, max_val, default_val, attr_name, color=None):
-        frame = ctk.CTkFrame(self.frame_cine_settings, fg_color="transparent")
-        frame.pack(fill="x", padx=10, pady=2)
-        lbl = ctk.CTkLabel(frame, text=f"{name} ({default_val})", font=PERSIAN_FONT)
-        lbl.pack(side="right", padx=5)
-        args = {'from_': min_val, 'to': max_val, 'number_of_steps': 30, 'command': lambda v: self.update_cine_label(lbl, name, v)}
-        if color: args['progress_color'] = color
-        slider = ctk.CTkSlider(frame, **args)
-        slider.set(default_val)
-        slider.pack(side="left", fill="x", expand=True)
-        setattr(self, f"slider_{attr_name}", slider)
+        # سایر سوییچ‌ها (حذف صدا پاک شد)
+        self.sw_boomerang = ft.Switch(label="افکت بومرنگ", active_color=COLOR_PRIMARY)
 
-    def update_cine_label(self, label_widget, name, value):
-        label_widget.configure(text=f"{name} ({round(value, 3)})")
-
-    def update_compress_label(self, value):
-        val = int(value)
-        desc = ""
-        if val <= 21: desc = "کیفیت عالی (حجم بالا)"
-        elif val <= 26: desc = "استاندارد (پیشنهادی)"
-        elif val <= 30: desc = "فشرده و بهینه"
-        else: desc = "حجم کم (کیفیت پایین)"
-        self.lbl_compress_info.configure(text=f"CRF: {val} ({desc})")
-
-    def toggle_cine_accordion(self):
-        if self.frame_cine_settings.winfo_ismapped():
-            self.frame_cine_settings.pack_forget()
-            self.btn_cine_acc.configure(text="🔽 تنظیمات")
-        else:
-            self.frame_cine_settings.pack(after=self.frame_cine_header, pady=5, padx=20, fill="x")
-            self.btn_cine_acc.configure(text="🔼 بستن")
-
-    def toggle_compress_accordion(self):
-        if self.frame_compress_settings.winfo_ismapped():
-            self.frame_compress_settings.pack_forget()
-            self.btn_compress_acc.configure(text="🔽 تنظیمات")
-        else:
-            self.frame_compress_settings.pack(after=self.frame_compress_header, pady=5, padx=20, fill="x")
-            self.btn_compress_acc.configure(text="🔼 بستن")
-
-    def sanitize_time(self, time_str):
-        time_str = time_str.replace(',', '.')
-        if time_str.count(':') == 3:
-            parts = time_str.rsplit(':', 1)
-            return f"{parts[0]}.{parts[1]}"
-        return time_str
-
-    def time_to_seconds(self, time_str):
-        try:
-            h, m, s = time_str.split(':')
-            return int(h) * 3600 + int(m) * 60 + float(s)
-        except: return 0
-
-    def start_process_thread(self):
-        threading.Thread(target=self.run_ffmpeg, daemon=True).start()
-
-    def run_ffmpeg(self):
-        output_file = None
-        try:
-            input_file = self.entry_file.get().strip('"')
-            if not input_file or not os.path.exists(input_file):
-                self.label_status.configure(text="❌ خطا: فایل یافت نشد.", text_color="red")
-                return
-
-            start_t = self.sanitize_time(self.entry_start.get())
-            end_t = self.sanitize_time(self.entry_end.get())
-            safe_start = start_t.replace(":", "-").replace(".", "-")
-            safe_end = end_t.replace(":", "-").replace(".", "-")
-            directory, filename = os.path.split(input_file)
-            name, ext = os.path.splitext(filename)
-            output_file = os.path.join(directory, f"{name}_{safe_start}_to_{safe_end}{ext}")
-
-            # محاسبه زمان کل برای پیشرفت
-            total_duration = self.time_to_seconds(end_t) - self.time_to_seconds(start_t)
-            if total_duration <= 0: total_duration = 1 
-            # اگر بومرنگ باشد، زمان پردازش دو برابر است
-            if self.check_boomerang.get(): total_duration *= 2
-
-            self.btn_run.configure(state="disabled", text="در حال پردازش...")
-            self.label_status.configure(text="🚀 شروع شد...", text_color="orange")
-            self.progress_bar.set(0)
-
-            track_selection = self.get_selected_tracks()
-            video_tracks = track_selection.get("video")
-            if not video_tracks:
-                self.label_status.configure(text="❌ خطا: حداقل یک ویدیو لازم است.", text_color="red")
-                self.btn_run.configure(state="normal", text="شروع پردازش")
-                return
-
-            primary_video = video_tracks[0]
-            video_spec = f"0:v:{primary_video.get('type_index', 0)}"
-            filter_input = f"[{video_spec}]"
-
-            cmd = ['ffmpeg', '-y', '-ss', start_t, '-to', end_t, '-i', input_file]
-            filter_chains = []
-            last_stream = filter_input
-
-            if self.check_cinematic.get():
-                con = round(self.slider_contrast.get(), 2)
-                bri = round(self.slider_brightness.get(), 2)
-                sat = round(self.slider_saturation.get(), 2)
-                g_r = round(self.slider_gamma_r.get(), 2)
-                g_b = round(self.slider_gamma_b.get(), 2)
-                cine_filter = f"{last_stream}unsharp=5:5:1.0:5:5:0.0,eq=contrast={con}:brightness={bri}:saturation={sat}:gamma_r={g_r}:gamma_b={g_b}[v_cine]"
-                filter_chains.append(cine_filter)
-                last_stream = "[v_cine]"
-
-            if self.check_boomerang.get():
-                boom_filter = f"{last_stream}split=2[f][r];[r]reverse[rev];[f][rev]concat=n=2:v=1:a=0[outv]"
-                filter_chains.append(boom_filter)
-                last_stream = "[outv]"
-            elif filter_chains:
-                filter_chains.append(f"{last_stream}null[outv]")
-                last_stream = "[outv]"
-
-            if filter_chains:
-                cmd.extend(['-filter_complex', ";".join(filter_chains)])
-                cmd.extend(['-map', last_stream])
-            else:
-                cmd.extend(['-map', video_spec])
-
-            crf_val = str(int(self.slider_crf.get())) if self.check_compress.get() else '20'
-            cmd.extend(['-c:v', 'libx264', '-preset', 'slow', '-crf', crf_val])
-
-            audio_tracks = track_selection.get("audio") if not self.check_mute.get() else []
-            subtitle_tracks = track_selection.get("subtitle")
-
-            if audio_tracks:
-                for at in audio_tracks:
-                    cmd.extend(['-map', f"0:a:{at.get('type_index', 0)}"])
-                cmd.extend(['-c:a', 'copy'])
-            else:
-                cmd.append('-an')
-
-            if subtitle_tracks:
-                for st in subtitle_tracks:
-                    cmd.extend(['-map', f"0:s:{st.get('type_index', 0)}"])
-                cmd.extend(['-c:s', 'copy'])
-            else:
-                cmd.append('-sn')
-
-            cmd.append(output_file)
-
-            # استفاده از startupinfo برای مخفی کردن پنجره در ویندوز
-            startupinfo = None
-            if os.name == 'nt':
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
-            process = subprocess.Popen(
-                cmd, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE, 
-                universal_newlines=True, 
-                startupinfo=startupinfo,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0
-            )
-            
-            # ریجکس بهبود یافته که فضاهای خالی را هم قبول کند
-            time_pattern = re.compile(r"time=\s*(\d{2}:\d{2}:\d{2}\.\d{2})")
-
-            while True:
-                line = process.stderr.readline()
-                if not line and process.poll() is not None: 
-                    break
-                if line:
-                    match = time_pattern.search(line)
-                    if match:
-                        try:
-                            current_seconds = self.time_to_seconds(match.group(1))
-                            progress = current_seconds / total_duration
-                            # محدود کردن درصد به 1 (100%)
-                            if progress > 1: progress = 1
-                            self.progress_bar.set(progress)
-                            self.label_status.configure(text=f"⏳ {int(progress*100)}%")
-                        except: pass
-                    
-                    if output_file and os.path.exists(output_file):
-                        try:
-                            size_mb = os.path.getsize(output_file) / (1024 * 1024)
-                            self.label_size.configure(text=f"حجم: \u202A{size_mb:.2f} MB\u202C")
-                        except: pass
-
-        except Exception as e:
-            self.label_status.configure(text=f"خطا: {str(e)}", text_color="red")
+        # 5. دکمه‌ها
+        self.btn_run = ft.ElevatedButton(
+            text="شروع پردازش",
+            icon=ft.Icons.ROCKET_LAUNCH,
+            style=ft.ButtonStyle(
+                bgcolor=COLOR_SUCCESS,
+                color="white",
+                shape=ft.RoundedRectangleBorder(radius=8),
+                padding=20
+            ),
+            width=300,
+            on_click=self.start_processing
+        )
         
+        self.progress_bar = ft.ProgressBar(value=0, color=COLOR_SUCCESS, bgcolor="#444444", visible=False)
+        self.txt_status = ft.Text("منتظر فایل...", size=12, color=COLOR_TEXT_SEC)
+
+        self.file_picker = ft.FilePicker(on_result=self.on_pick)
+        self.page.overlay.append(self.file_picker)
+
+        # === چیدمان نهایی (Main Layout) ===
+        main_layout = ft.Container(
+            padding=20, # فاصله محتوا از لبه‌ها
+            content=ft.Column([
+                # هدر
+                ft.Container(
+                    content=ft.Text("📥 فایل را اینجا رها کنید", weight="bold", size=18),
+                    alignment=ft.alignment.center,
+                    padding=10
+                ),
+                
+                # انتخاب فایل
+                ft.Row([self.txt_file_path, self.btn_browse], alignment="center"),
+                
+                # لیست ترک‌ها
+                ft.Text("ترک‌های فایل:", weight="bold"),
+                self.track_container, 
+                
+                ft.Divider(height=1, color="#444444"),
+                
+                # تایم‌لاین
+                # چیدمان: [پایان (راست)] -> [فلش] -> [شروع (چپ)]
+                ft.Row(
+                    [
+                        self.txt_end,  
+                        ft.Icon(ft.Icons.ARROW_BACK, color="grey"), 
+                        self.txt_start 
+                    ],
+                    alignment="center"
+                ),
+                
+                ft.Divider(height=1, color="#444444"),
+                
+                # تنظیمات
+                self.sw_boomerang,
+                # سوییچ حذف صدا حذف شد
+                
+                ft.Divider(height=10, color="transparent"),
+                
+                # گروه فشرده‌سازی
+                ft.Column([
+                    self.sw_compress,
+                    self.exp_compress
+                ], spacing=0),
+
+                ft.Divider(height=5, color="transparent"),
+
+                # گروه سینماتیک
+                ft.Column([
+                    self.sw_cine,
+                    self.exp_cine
+                ], spacing=0),
+                
+                # فوتر
+                ft.Container(height=15),
+                ft.Row([self.btn_run], alignment="center"),
+                self.progress_bar,
+                ft.Container(self.txt_status, alignment=ft.alignment.center),
+                ft.Container(height=20) 
+            ])
+        )
+
+        self.page.add(main_layout)
+
+    # --- توابع کمکی ---
+    def toggle_visibility(self, control, is_visible):
+        """نمایش یا مخفی کردن آکاردئون بر اساس سوییچ"""
+        control.visible = is_visible
+        self.page.update()
+
+    def create_slider(self, label, min_v, max_v, def_v, color=COLOR_PRIMARY):
+        txt = ft.Text(f"{label}: {def_v}", size=12)
+        sl = ft.Slider(min=min_v, max=max_v, divisions=30, value=def_v, active_color=color, label="{value}")
+        sl.on_change = lambda e: setattr(txt, "value", f"{label}: {round(e.control.value, 2)}") or self.page.update()
+        return ft.Column([txt, sl], spacing=0)
+
+    # --- منطق برنامه ---
+    def on_pick(self, e):
+        if e.files: self.load_file(e.files[0].path)
+
+    def on_file_drop(self, e):
+        self.load_file(e.path)
+
+    def load_file(self, path):
+        if not path.lower().endswith(('.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv')):
+            self.page.snack_bar = ft.SnackBar(ft.Text("فرمت فایل پشتیبانی نمی‌شود!"), bgcolor="red")
+            self.page.snack_bar.open = True
+            self.page.update()
+            return
+
+        self.selected_file = path
+        self.txt_file_path.value = path
+        self.txt_status.value = "در حال تحلیل فایل..."
+        self.progress_bar.visible = True
+        self.page.update()
+        
+        threading.Thread(target=self.analyze_file, args=(path,), daemon=True).start()
+
+    def analyze_file(self, path):
+        try:
+            cmd = ["ffprobe", "-v", "error", "-show_entries", "stream=index,codec_type,codec_name:stream_tags=language,title", "-of", "json", path]
+            si = subprocess.STARTUPINFO()
+            si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            res = subprocess.run(cmd, capture_output=True, text=True, startupinfo=si)
+            data = json.loads(res.stdout)
+            
+            self.tracks_data = []
+            type_map = {"video": "ویدیو", "audio": "صدا", "subtitle": "زیرنویس"}
+            counters = {"video": 0, "audio": 0, "subtitle": 0}
+
+            for s in data.get("streams", []):
+                t = s.get("codec_type", "unknown")
+                if t not in counters: counters[t] = 0
+                track = {
+                    "idx": counters[t],
+                    "real_index": s["index"],
+                    "type": t,
+                    "codec": s.get("codec_name", "").upper(),
+                    "lang": s.get("tags", {}).get("language", "-").upper(),
+                    "label": type_map.get(t, t),
+                    "control": ft.Checkbox(value=True)
+                }
+                self.tracks_data.append(track)
+                counters[t] += 1
+            
+            self.update_list_ui()
+            
+        except Exception as e:
+            self.txt_status.value = f"خطا: {e}"
         finally:
-            self.progress_bar.set(1)
-            self.label_status.configure(text="✅ تمام شد!", text_color="green")
-            self.btn_run.configure(state="normal", text="شروع پردازش")
-            # تضمین نمایش پاپ‌آپ اگر فایل ساخته شده باشد
-            if output_file and os.path.exists(output_file):
-                self.after(0, lambda: SuccessDialog(self, output_file))
+            self.progress_bar.visible = False
+            self.page.update()
+
+    def update_list_ui(self):
+        self.track_list.controls.clear()
+        for t in self.tracks_data:
+            if t['type'] == 'video': icon = ft.Icons.VIDEOCAM
+            elif t['type'] == 'audio': icon = ft.Icons.AUDIOTRACK
+            else: icon = ft.Icons.SUBTITLES
+            
+            self.track_list.controls.append(
+                ft.Container(
+                    content=ft.Row([
+                        t['control'],
+                        ft.Icon(icon, size=16, color=COLOR_TEXT_SEC),
+                        ft.Text(t['codec'], width=60, text_align="center", size=12),
+                        ft.Text(t['label'], expand=1, text_align="center", size=12, color=COLOR_TEXT_SEC),
+                        ft.Text(t['lang'], width=40, text_align="center", size=12),
+                    ], alignment="start"),
+                    bgcolor="#333333", border_radius=5, padding=ft.padding.symmetric(horizontal=5, vertical=2)
+                )
+            )
+        self.txt_status.value = f"✅ {len(self.tracks_data)} ترک بارگذاری شد."
+        self.page.update()
+
+    def start_processing(self, e):
+        if not self.selected_file: return
+        
+        cfg = {
+            "start": self.txt_start.value, "end": self.txt_end.value,
+            "boomerang": self.sw_boomerang.value,
+            # "mute": حذف شد چون از لیست ترک‌ها خوانده می‌شود
+            "compress": self.sw_compress.value, "cine": self.sw_cine.value,
+            "crf": int(self.slider_crf.value),
+            "con": self.sl_con.controls[1].value, "bri": self.sl_bri.controls[1].value,
+            "sat": self.sl_sat.controls[1].value,
+            "gr": self.sl_gam_r.controls[1].value, "gb": self.sl_gam_b.controls[1].value,
+            "tracks": [t for t in self.tracks_data if t['control'].value]
+        }
+        
+        self.btn_run.disabled = True
+        self.progress_bar.visible = True
+        self.progress_bar.value = None
+        self.txt_status.value = "در حال پردازش..."
+        self.page.update()
+        threading.Thread(target=self.run_ffmpeg, args=(cfg,), daemon=True).start()
+
+    def run_ffmpeg(self, cfg):
+        try:
+            inp = self.selected_file
+            d, f = os.path.split(inp)
+            name, ext = os.path.splitext(f)
+            safe_time = cfg['start'].replace(":", "-").replace(".", "")
+            out = os.path.join(d, f"{name}_EDIT_{safe_time}{ext}")
+            
+            cmd = ['ffmpeg', '-y', '-ss', cfg['start'], '-to', cfg['end'], '-i', inp]
+            filters = []
+            video_tracks = [t for t in cfg['tracks'] if t['type'] == 'video']
+            
+            if video_tracks:
+                vid_idx = video_tracks[0]['idx']
+                last_stream = f"[0:v:{vid_idx}]"
+                if cfg['cine']:
+                    filters.append(f"{last_stream}unsharp=5:5:1.0:5:5:0.0,eq=contrast={cfg['con']}:brightness={cfg['bri']}:saturation={cfg['sat']}:gamma_r={cfg['gr']}:gamma_b={cfg['gb']}[v_cine]")
+                    last_stream = "[v_cine]"
+                if cfg['boomerang']:
+                    filters.append(f"{last_stream}split=2[f][r];[r]reverse[rev];[f][rev]concat=n=2:v=1:a=0[outv]")
+                    last_stream = "[outv]"
+                elif cfg['cine']: 
+                    filters.append(f"{last_stream}null[outv]")
+                    last_stream = "[outv]"
+                
+                if filters: cmd.extend(['-filter_complex', ";".join(filters), '-map', last_stream])
+                else: cmd.extend(['-map', f"0:v:{vid_idx}"])
+                
+                if cfg['compress'] or filters: cmd.extend(['-c:v', 'libx264', '-crf', str(cfg['crf']), '-preset', 'fast'])
+                else: cmd.extend(['-c:v', 'copy'])
+
+            # --- بخش صدا (اصلاح شده) ---
+            # فقط صداهای تیک خورده در لیست اضافه می‌شوند.
+            # اگر هیچ صدایی تیک نخورده باشد، خودکار بی‌صدا می‌شود.
+            has_audio = False
+            for t in cfg['tracks']:
+                if t['type'] == 'audio':
+                    cmd.extend(['-map', f"0:a:{t['idx']}"])
+                    has_audio = True
+            
+            if has_audio:
+                cmd.extend(['-c:a', 'copy']) # کپی صدا
+            
+            # --- بخش زیرنویس ---
+            has_sub = False
+            for t in cfg['tracks']:
+                if t['type'] == 'subtitle':
+                    cmd.extend(['-map', f"0:s:{t['idx']}"])
+                    has_sub = True
+            if has_sub: cmd.extend(['-c:s', 'copy'])
+            
+            cmd.append(out)
+            si = subprocess.STARTUPINFO(); si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            subprocess.run(cmd, check=True, startupinfo=si)
+            
+            self.page.snack_bar = ft.SnackBar(ft.Text("✅ فایل ذخیره شد!"), bgcolor=COLOR_SUCCESS, action="باز کردن", on_action=lambda _: self.open_folder(out))
+            self.page.snack_bar.open = True
+            self.txt_status.value = "پایان."
+        except Exception as e:
+            self.page.snack_bar = ft.SnackBar(ft.Text(f"خطا: {str(e)}"), bgcolor="red")
+            self.page.snack_bar.open = True
+            self.txt_status.value = "خطا."
+        finally:
+            self.btn_run.disabled = False
+            self.progress_bar.visible = False
+            self.page.update()
+
+    def open_folder(self, file_path):
+        try: os.startfile(os.path.dirname(file_path))
+        except: pass
 
 if __name__ == "__main__":
-    app = VideoEditorApp()
-    app.mainloop()
+    ft.app(target=VideoEditorApp)
