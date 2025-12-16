@@ -42,32 +42,26 @@ class VideoEditorApp:
         self.page.fonts = {"Persian": "Tahoma"}
         self.page.theme = ft.Theme(font_family="Persian")
         
-        # فعال‌سازی درگ اند دراپ
-        self.page.on_file_drop = self.on_file_drop
+
 
     def build_ui(self):
         # 1. انتخاب فایل
-        self.drop_zone = ft.Container(
-            content=ft.Column([
-                ft.Icon(ft.Icons.CLOUD_UPLOAD, size=36, color=COLOR_PRIMARY),
-                ft.Text("فایل را اینجا رها کنید", weight="bold", size=16, text_align="center"),
-                ft.Text("MP4 / MKV / MOV / AVI / WEBM / FLV", size=12, color=COLOR_TEXT_SEC, text_align="center")
-            ], alignment="center", horizontal_alignment="center", spacing=5),
-            height=110,
-            border=ft.border.all(1, "#444444"),
-            border_radius=12,
-            bgcolor=COLOR_CARD,
-            padding=15,
-            alignment=ft.alignment.center
-        )
 
         self.txt_file_path = ft.TextField(
             label="مسیر فایل ویدیو",
-            read_only=True,
             expand=True,
             text_size=12,
             border_color=COLOR_PRIMARY, 
-            prefix_icon=ft.Icons.VIDEO_FILE 
+            prefix_icon=ft.Icons.VIDEO_FILE,
+            suffix=ft.IconButton(
+                icon=ft.Icons.PLAY_CIRCLE_FILL,
+                icon_color=COLOR_PRIMARY,
+                icon_size=20,
+                tooltip="لود فایل",
+                on_click=self.on_load_path
+            ),
+            on_submit=self.on_load_path,
+            hint_text="مسیر فایل را وارد کنید یا بچسبانید..."
         )
         
         self.btn_browse = ft.IconButton(
@@ -184,7 +178,7 @@ class VideoEditorApp:
         main_layout = ft.Container(
             padding=20, # فاصله محتوا از لبه‌ها
             content=ft.Column([
-                self.drop_zone,
+
 
                 # انتخاب فایل
                 ft.Row([self.txt_file_path, self.btn_browse], alignment="center"),
@@ -255,24 +249,21 @@ class VideoEditorApp:
     def on_pick(self, e):
         if e.files: self.load_file(e.files[0].path)
 
-    def on_file_drop(self, e):
-        self.on_drag_leave(e)
-        if e.files:
-            # رویداد دراپ لیست فایل‌ها را برمی‌گرداند
-            self.load_file(e.files[0].path)
-        elif getattr(e, "path", None):
-            # سازگاری با نسخه‌هایی که هنوز path را ست می‌کنند
-            self.load_file(e.path)
 
-    def on_drag_enter(self, e):
-        self.drop_zone.border = ft.border.all(2, COLOR_PRIMARY)
-        self.drop_zone.bgcolor = "#242424"
-        self.page.update()
 
-    def on_drag_leave(self, e):
-        self.drop_zone.border = ft.border.all(1, "#444444")
-        self.drop_zone.bgcolor = COLOR_CARD
-        self.page.update()
+
+    def on_load_path(self, e):
+        """لود فایل از مسیر وارد شده در فیلد متنی"""
+        path = self.txt_file_path.value
+        if path:
+            # حذف کوتیشن‌های احتمالی از ابتدا و انتهای مسیر
+            path = path.strip().strip('"').strip("'")
+            if os.path.isfile(path):
+                self.load_file(path)
+            else:
+                self.page.snack_bar = ft.SnackBar(ft.Text("فایل یافت نشد!"), bgcolor="red")
+                self.page.snack_bar.open = True
+                self.page.update()
 
     def load_file(self, path):
         if not path.lower().endswith(('.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv')):
