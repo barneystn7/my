@@ -92,6 +92,18 @@ class VideoEditorApp:
         self.txt_start = ft.TextField(label="شروع", value="00:00:00.000", width=130, text_align="center", text_size=13)
         self.txt_end = ft.TextField(label="پایان", value="00:00:05.500", width=130, text_align="center", text_size=13)
 
+        # مولتی تایم
+        self.multi_time_checkbox = ft.Checkbox(label="مولتی تایم", value=False, on_change=self.on_multi_time_toggle)
+        self.add_time_btn = ft.IconButton(
+            icon=ft.Icons.ADD,
+            icon_color=COLOR_PRIMARY,
+            tooltip="افزودن فیلد زمان",
+            on_click=self.on_add_time_field,
+            visible=False
+        )
+        self.extra_time_rows = []
+        self.extra_time_container = ft.Column(visible=False, spacing=5)
+
         # 4. تنظیمات هوشمند (سوییچ + آکاردئون)
 
         # --- الف) بخش فشرده‌سازی ---
@@ -190,14 +202,26 @@ class VideoEditorApp:
                 ft.Divider(height=1, color="#444444"),
                 
                 # تایم‌لاین
-                # چیدمان: [پایان (راست)] -> [فلش] -> [شروع (چپ)]
                 ft.Row(
                     [
-                        self.txt_end,  
-                        ft.Icon(ft.Icons.ARROW_BACK, color="grey"), 
-                        self.txt_start 
+                        ft.Column([
+                            ft.Row([
+                                self.txt_end,
+                                ft.Icon(ft.Icons.ARROW_BACK, color="grey"),
+                                self.txt_start
+                            ], alignment="center"),
+                            self.extra_time_container
+                        ], expand=True, spacing=8),
+                        ft.Column(
+                            [
+                                self.multi_time_checkbox,
+                                self.add_time_btn
+                            ],
+                            spacing=4,
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER
+                        )
                     ],
-                    alignment="center"
+                    alignment="spaceBetween"
                 ),
                 
                 ft.Divider(height=1, color="#444444"),
@@ -244,6 +268,30 @@ class VideoEditorApp:
         sl = ft.Slider(min=min_v, max=max_v, divisions=30, value=def_v, active_color=color, label="{value}")
         sl.on_change = lambda e: setattr(txt, "value", f"{label}: {round(e.control.value, 2)}") or self.page.update()
         return ft.Column([txt, sl], spacing=0)
+
+    def on_multi_time_toggle(self, e):
+        enabled = e.control.value
+        self.extra_time_container.visible = enabled
+        self.add_time_btn.visible = enabled
+        if enabled and not self.extra_time_rows:
+            self.on_add_time_field(None)
+        elif not enabled:
+            self.extra_time_rows.clear()
+            self.extra_time_container.controls.clear()
+        self.page.update()
+
+    def on_add_time_field(self, e):
+        start_field = ft.TextField(label="شروع", value="", width=130, text_align="center", text_size=13)
+        end_field = ft.TextField(label="پایان", value="", width=130, text_align="center", text_size=13)
+        row = ft.Row([
+            end_field,
+            ft.Icon(ft.Icons.ARROW_BACK, color="grey"),
+            start_field
+        ], alignment="center")
+        self.extra_time_rows.append({"start": start_field, "end": end_field, "row": row})
+        self.extra_time_container.controls.append(row)
+        self.extra_time_container.visible = True
+        self.page.update()
 
     # --- منطق برنامه ---
     def on_pick(self, e):
@@ -349,8 +397,16 @@ class VideoEditorApp:
             "con": self.sl_con.controls[1].value, "bri": self.sl_bri.controls[1].value,
             "sat": self.sl_sat.controls[1].value,
             "gr": self.sl_gam_r.controls[1].value, "gb": self.sl_gam_b.controls[1].value,
-            "tracks": [t for t in self.tracks_data if t['control'].value]
+            "tracks": [t for t in self.tracks_data if t['control'].value],
+            "multi_time": self.multi_time_checkbox.value,
+            "extra_times": []
         }
+
+        if self.multi_time_checkbox.value:
+            cfg["extra_times"] = [
+                {"start": r["start"].value or "", "end": r["end"].value or ""}
+                for r in self.extra_time_rows
+            ]
         
         self.btn_run.disabled = True
         self.progress_bar.visible = True
